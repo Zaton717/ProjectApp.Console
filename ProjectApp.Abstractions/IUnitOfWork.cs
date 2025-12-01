@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProjectApp.Abstractions
+﻿namespace ProjectApp.Abstractions
 {
-    internal interface IUnitOfWork
+    public interface IUnitOfWork
     {
+        ISzkolaRepository SzkolaRepository { get; }
+        void Save();
     }
 }

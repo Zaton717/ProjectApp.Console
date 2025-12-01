@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ProjectApp.Abstractions\ProjectApp.Abstractions.csproj" />
+    <ProjectReference Include="..\ProjectApp.DataModel\ProjectApp.DataModel.csproj" />
+    <ProjectReference Include="..\ProjectApp.ServiceAbstractions\ProjectApp.ServiceAbstractions.csproj" />
   </ItemGroup>
 
 </Project>

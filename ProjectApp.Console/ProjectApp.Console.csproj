@@ -7,4 +7,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ProjectApp.Abstractions\ProjectApp.Abstractions.csproj" />
+    <ProjectReference Include="..\ProjectApp.DataAccess.Memory\ProjectApp.DataAccess.Memory.csproj" />
+    <ProjectReference Include="..\ProjectApp.DataModel\ProjectApp.DataModel.csproj" />
+    <ProjectReference Include="..\ProjectApp.ServiceAbstractions\ProjectApp.ServiceAbstractions.csproj" />
+    <ProjectReference Include="..\ProjectApp.Services.Memory\ProjectApp.Services.csproj" />
+  </ItemGroup>
+
 </Project>

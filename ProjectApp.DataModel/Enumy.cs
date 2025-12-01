@@ -1,23 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProjectApp.DataModel
+﻿namespace ProjectApp.DataModel
 {
     public enum KategoriaPrawaJazdy
     {
         A,
         B,
-        C
+        C,
+        D,
+        T
     }
 
     public enum TypPojazdu
     {
         Motocykl,
         SamochodOsobowy,
-        Ciezarowka
+        Ciezarowka,
+        Autobus
     }
 }
-

@@ -1,12 +1,11 @@
-﻿using System;
+﻿using ProjectApp.DataModel;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.DataAccess.Memory
 {
+    // Nasza "baza danych" w pamięci RAM
     internal class MemoryDbContext
     {
+        public List<Szkola> Szkoly { get; set; } = new List<Szkola>();
     }
 }
