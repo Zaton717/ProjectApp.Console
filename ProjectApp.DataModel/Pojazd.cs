@@ -7,6 +7,7 @@
         public string Model { get; set; }
         public string NrRejestracyjny { get; set; }
         public TypPojazdu Typ { get; set; }
+        public StatusPojazdu Status { get; set; } = StatusPojazdu.Sprawny;
         public Instruktor PrzypisanyInstruktor { get; set; }
     }
 }

@@ -1,19 +1,13 @@
 ﻿namespace ProjectApp.DataModel
 {
-    public enum KategoriaPrawaJazdy
-    {
-        A,
-        B,
-        C,
-        D,
-        T
-    }
+    public enum KategoriaPrawaJazdy { A, B, C, D, T }
 
-    public enum TypPojazdu
+    public enum TypPojazdu { Motocykl, SamochodOsobowy, Ciezarowka, Autobus }
+
+    public enum StatusPojazdu
     {
-        Motocykl,
-        SamochodOsobowy,
-        Ciezarowka,
-        Autobus
+        Sprawny,
+        Awaria,
+        WSerwisie
     }
 }

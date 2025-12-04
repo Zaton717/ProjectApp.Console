@@ -7,6 +7,7 @@ namespace ProjectApp.DataModel
         public uint IdSzkoly { get; set; }
         public string Nazwa { get; set; }
         public string Adres { get; set; }
+        public bool CzyAktywna { get; set; } = true; // NOWE POLE
 
         public Menadzer Menadzer { get; set; }
         public List<Instruktor> Instruktorzy { get; set; } = new List<Instruktor>();

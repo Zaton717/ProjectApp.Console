@@ -15,13 +15,13 @@ namespace ProjectApp.DataAccess.Memory
         }
 
         public void Add(Szkola szkola) => _context.Szkoly.Add(szkola);
+        public Szkola Get(uint id) => _context.Szkoly.FirstOrDefault(s => s.IdSzkoly == id);
+        public List<Szkola> GetAll() => _context.Szkoly;
         public void Delete(uint id)
         {
             var item = Get(id);
             if (item != null) _context.Szkoly.Remove(item);
         }
-        public Szkola Get(uint id) => _context.Szkoly.FirstOrDefault(s => s.IdSzkoly == id);
-        public List<Szkola> GetAll() => _context.Szkoly;
     }
 
     public class UnitOfWorkMemory : IUnitOfWork
@@ -32,13 +32,17 @@ namespace ProjectApp.DataAccess.Memory
         public UnitOfWorkMemory()
         {
             _context = new MemoryDbContext();
+
+            // WCZYTANIE DANYCH PRZY STARCIE
+            _context.LoadData();
+
             SzkolaRepository = new SzkolaRepositoryMemory(_context);
         }
 
         public void Save()
         {
-            // W pamięci zmiany są natychmiastowe, więc nic tu nie robimy
-            Console.WriteLine("Zapisano stan w pamięci.");
+            // ZAPIS DANYCH PRZY KAŻDEJ ZMIANIE
+            _context.SaveChanges();
         }
     }
 }

@@ -16,129 +16,140 @@ namespace ProjectApp.Services
             _unitOfWork = unitOfWork;
         }
 
+        // --- WŁAŚCICIEL: ZAMYKANIE I KADRY ---
+
+        public void ZamknijSzkole(Szkola szkola)
+        {
+            if (szkola != null)
+            {
+                szkola.CzyAktywna = false;
+                _unitOfWork.Save();
+                Console.WriteLine($"[WŁAŚCICIEL] Szkoła '{szkola.Nazwa}' została zamknięta.");
+            }
+        }
+
+        public void ZmienMenadzera(Szkola szkola, string noweImie, string noweNazwisko)
+        {
+            if (szkola != null && szkola.Menadzer != null)
+            {
+                szkola.Menadzer.Imie = noweImie;
+                szkola.Menadzer.Nazwisko = noweNazwisko;
+                _unitOfWork.Save();
+                Console.WriteLine($"[KADRY] Nowym menadżerem jest {noweImie} {noweNazwisko}.");
+            }
+        }
+
+        public void ZwolnijInstruktora(Szkola szkola, uint idInstruktora)
+        {
+            if (szkola == null) return;
+
+            var instruktor = szkola.Instruktorzy.FirstOrDefault(i => i.IdInstruktora == idInstruktora);
+            if (instruktor == null)
+            {
+                Console.WriteLine("[BŁĄD] Nie znaleziono instruktora.");
+                return;
+            }
+
+            // 1. Usuń go z przypisanych Kursów
+            foreach (var kurs in szkola.Kursy.Where(k => k.Instruktor == instruktor))
+            {
+                kurs.Instruktor = null;
+            }
+
+            // 2. Usuń go z przypisanych Pojazdów
+            foreach (var pojazd in szkola.Pojazdy.Where(p => p.PrzypisanyInstruktor == instruktor))
+            {
+                pojazd.PrzypisanyInstruktor = null;
+            }
+
+            // 3. Usuń go z listy pracowników
+            szkola.Instruktorzy.Remove(instruktor);
+            _unitOfWork.Save();
+            Console.WriteLine($"[KADRY] Instruktor {instruktor.Nazwisko} został zwolniony. Zasoby zwolnione.");
+        }
+
+        // --- RESZTA METOD (BEZ WIĘKSZYCH ZMIAN) ---
+
         public void UtworzNowaSzkole(string nazwa, string adres, string wlascicielImie)
         {
-            // Tworzymy obiekty zależne
-            var wlasciciel = new Wlasciciel { IdWlasciciela = 1, Imie = wlascicielImie, Nazwisko = "Kowalski" };
-            var menadzer = new Menadzer { IdMenadzera = 1, Imie = "Jan", Nazwisko = "Zarządca" };
-
+            var menadzer = new Menadzer { IdMenadzera = 1, Imie = "Jan", Nazwisko = "Kierownik" };
             var szkola = new Szkola
             {
                 IdSzkoly = (uint)(_unitOfWork.SzkolaRepository.GetAll().Count + 1),
                 Nazwa = nazwa,
                 Adres = adres,
+                CzyAktywna = true,
                 Menadzer = menadzer,
-                // Ważne: Inicjalizacja list, aby uniknąć NullReferenceException
                 Instruktorzy = new List<Instruktor>(),
                 Kursanci = new List<Kursant>(),
                 Kursy = new List<Kurs>(),
                 Pojazdy = new List<Pojazd>()
             };
-
             _unitOfWork.SzkolaRepository.Add(szkola);
             _unitOfWork.Save();
             Console.WriteLine($"[SYSTEM] Utworzono szkołę: {nazwa}");
         }
 
-        public void DodajInstruktora(Szkola szkola, Instruktor instruktor)
-        {
-            if (szkola != null && instruktor != null)
-            {
-                szkola.Instruktorzy.Add(instruktor);
-                _unitOfWork.Save();
-            }
-        }
-
-        public void DodajKurs(Szkola szkola, Kurs kurs)
-        {
-            if (szkola != null && kurs != null)
-            {
-                szkola.Kursy.Add(kurs);
-                _unitOfWork.Save();
-            }
-        }
-
-        public void RejestrujKursanta(Szkola szkola, Kursant kursant)
-        {
-            if (szkola != null && kursant != null)
-            {
-                szkola.Kursanci.Add(kursant);
-                _unitOfWork.Save();
-            }
-        }
+        public void DodajInstruktora(Szkola s, Instruktor i) { if (s != null) { s.Instruktorzy.Add(i); _unitOfWork.Save(); } }
+        public void DodajPojazd(Szkola s, Pojazd p) { if (s != null) { s.Pojazdy.Add(p); _unitOfWork.Save(); } }
+        public void DodajKurs(Szkola s, Kurs k) { if (s != null) { s.Kursy.Add(k); _unitOfWork.Save(); } }
+        public void RejestrujKursanta(Szkola s, Kursant k) { if (s != null) { s.Kursanci.Add(k); _unitOfWork.Save(); } }
 
         public List<Szkola> PobierzWszystkieSzkoly() => _unitOfWork.SzkolaRepository.GetAll();
         public Szkola PobierzSzkole(uint id) => _unitOfWork.SzkolaRepository.Get(id);
+        public List<Kurs> PobierzKursyInstruktora(Szkola s, uint id) => s.Kursy.Where(k => k.Instruktor?.IdInstruktora == id).ToList();
+        public Kurs PobierzKursKursanta(Szkola s, uint id) => s.Kursy.FirstOrDefault(k => k.Uczestnicy.Any(u => u.IdKursanta == id));
 
-        public List<Kurs> PobierzKursyInstruktora(Szkola szkola, uint idInstruktora)
+        public void ZapiszKursantaNaKurs(Kursant k, Kurs kurs)
         {
-            return szkola.Kursy
-                .Where(k => k.Instruktor != null && k.Instruktor.IdInstruktora == idInstruktora)
-                .ToList();
-        }
-
-        // --- Logika przeniesiona z DataModel ---
-
-        public void ZapiszKursantaNaKurs(Kursant kursant, Kurs kurs)
-        {
-            if (kursant == null || kurs == null) return;
-
-            if (kursant.Kategoria != kurs.Kategoria)
+            if (k.Kategoria == kurs.Kategoria && !kurs.Uczestnicy.Contains(k))
             {
-                Console.WriteLine($"[BŁĄD] Kursant ma kategorię {kursant.Kategoria}, a kurs jest na {kurs.Kategoria}.");
-                return;
-            }
-
-            if (!kurs.Uczestnicy.Contains(kursant))
-            {
-                kurs.Uczestnicy.Add(kursant);
+                kurs.Uczestnicy.Add(k);
                 _unitOfWork.Save();
-                Console.WriteLine($"[SUKCES] Zapisano kursanta {kursant.Nazwisko} na kurs ID {kurs.IdKursu}.");
-            }
-            else
-            {
-                Console.WriteLine("[INFO] Kursant już jest na liście.");
+                Console.WriteLine("Zapisano na kurs.");
             }
         }
 
-        public void PrzypiszInstruktoraDoKursu(Kurs kurs, Instruktor instruktor)
+        public void PrzypiszInstruktoraDoKursu(Kurs k, Instruktor i)
         {
-            if (kurs == null || instruktor == null) return;
-
-            if (instruktor.Uprawnienia.Contains(kurs.Kategoria))
+            if (i.Uprawnienia.Contains(k.Kategoria))
             {
-                kurs.Instruktor = instruktor;
+                k.Instruktor = i;
                 _unitOfWork.Save();
-                Console.WriteLine($"[SUKCES] Przypisano instruktora {instruktor.Nazwisko} do kursu.");
-            }
-            else
-            {
-                Console.WriteLine($"[BŁĄD] Instruktor nie posiada uprawnień na kategorię {kurs.Kategoria}.");
+                Console.WriteLine("Przypisano instruktora.");
             }
         }
 
-        public void ZatwierdzPlatnosc(Platnosc platnosc)
+        public void PrzypiszInstruktoraDoPojazdu(Pojazd p, Instruktor i)
         {
-            if (platnosc == null) return;
-
-            platnosc.Status = true;
-            if (platnosc.Kursant != null)
+            if (p.Status == StatusPojazdu.Sprawny)
             {
-                platnosc.Kursant.Oplacony = true;
+                p.PrzypisanyInstruktor = i;
+                _unitOfWork.Save();
+                Console.WriteLine($"Przypisano {i.Nazwisko} do pojazdu {p.NrRejestracyjny}");
             }
+            else Console.WriteLine("Nie można przypisać - pojazd niesprawny.");
+        }
+
+        public void ZmienStatusPojazdu(Pojazd p, StatusPojazdu s)
+        {
+            p.Status = s;
+            if (s != StatusPojazdu.Sprawny) p.PrzypisanyInstruktor = null;
             _unitOfWork.Save();
-            Console.WriteLine($"[FINANSE] Płatność zatwierdzona. Status kursanta: Opłacony.");
         }
 
-        public void DodajTerminDoHarmonogramu(Kurs kurs, string termin)
+        public void ZatwierdzPlatnosc(Platnosc p)
         {
-            if (kurs != null)
-            {
-                if (kurs.Harmonogram == null) kurs.Harmonogram = new Harmonogram();
-                kurs.Harmonogram.Terminy.Add(termin);
-                _unitOfWork.Save();
-                Console.WriteLine($"[TERMIN] Dodano: {termin}");
-            }
+            p.Status = true;
+            if (p.Kursant != null) p.Kursant.Oplacony = true;
+            _unitOfWork.Save();
+        }
+
+        public void DodajTerminDoHarmonogramu(Kurs k, string t)
+        {
+            if (k.Harmonogram == null) k.Harmonogram = new Harmonogram { Terminy = new List<string>() };
+            k.Harmonogram.Terminy.Add(t);
+            _unitOfWork.Save();
         }
     }
 }
