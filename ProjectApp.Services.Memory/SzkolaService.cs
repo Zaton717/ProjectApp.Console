@@ -10,25 +10,24 @@ namespace ProjectApp.Services
     public class SzkolaService : ISzkolaService
     {
         private readonly ISzkolaRepository _szkoly;
+        private readonly IKursantRepository _kursanci;
         private readonly IUnitOfWork _uow;
 
-        public SzkolaService(ISzkolaRepository szkoly, IUnitOfWork uow)
+        public SzkolaService(ISzkolaRepository szkoly, IKursantRepository kursanci, IUnitOfWork uow)
         {
             _szkoly = szkoly;
+            _kursanci = kursanci;
             _uow = uow;
         }
 
-        // Ta metoda jest wywoływana, gdy Właściciel otwiera nową placówkę
         public Guid Create(string nazwa, string adres, string mImie, string mNazw)
         {
             var s = new Szkola
             {
                 Nazwa = nazwa,
                 Adres = adres,
-                // Tworzymy Menadżera od razu przy tworzeniu szkoły
                 Menadzer = new Menadzer { Imie = mImie, Nazwisko = mNazw }
             };
-
             _szkoly.Add(s);
             _uow.SaveChanges();
             return s.Id;
@@ -50,6 +49,21 @@ namespace ProjectApp.Services
             var s = Get(id); if (s == null) return false;
             s.CzyAktywna = true;
             _uow.SaveChanges(); return true;
+        }
+
+        public bool AddExistingKursant(Guid szkolaId, Guid kursantId)
+        {
+            var szkola = _szkoly.Get(szkolaId);
+            var kursant = _kursanci.Get(kursantId);
+
+            if (szkola == null || kursant == null) return false;
+
+            if (!szkola.Kursanci.Any(k => k.Id == kursantId))
+            {
+                szkola.Kursanci.Add(kursant);
+                _uow.SaveChanges();
+            }
+            return true;
         }
     }
 }

@@ -18,7 +18,6 @@ namespace ProjectApp.Services
             _uow = uow;
         }
 
-        // ZMIANA: Obsługa listy uprawnień
         public bool Zatrudnij(Guid sId, string imie, string nazwisko, List<KategoriaPrawaJazdy> uprawnienia)
         {
             var s = _szkoly.Get(sId);
@@ -28,7 +27,7 @@ namespace ProjectApp.Services
             {
                 Imie = imie,
                 Nazwisko = nazwisko,
-                Uprawnienia = uprawnienia ?? new List<KategoriaPrawaJazdy>() // Zabezpieczenie przed nullem
+                Uprawnienia = uprawnienia ?? new List<KategoriaPrawaJazdy>()
             };
 
             s.Instruktorzy.Add(i);

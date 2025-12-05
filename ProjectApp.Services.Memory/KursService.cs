@@ -38,7 +38,9 @@ namespace ProjectApp.Services
             var s = _szkoly.Get(sId);
             var k = s?.Kursy.FirstOrDefault(x => x.Id == kId);
             var i = s?.Instruktorzy.FirstOrDefault(x => x.Id == iId);
+
             if (k == null || i == null) return false;
+
             k.InstruktorId = iId;
             _uow.SaveChanges();
             return true;
@@ -49,6 +51,7 @@ namespace ProjectApp.Services
             var s = _szkoly.Get(sId);
             var k = s?.Kursy.FirstOrDefault(x => x.Id == kId);
             if (k == null) return false;
+
             k.Harmonogram.Add(termin);
             _uow.SaveChanges();
             return true;
@@ -59,12 +62,31 @@ namespace ProjectApp.Services
             var s = _szkoly.Get(sId);
             var kurs = s?.Kursy.FirstOrDefault(x => x.Id == kId);
             var kursant = _kursanci.Get(kursantId);
+
             if (s == null || kurs == null || kursant == null) return false;
 
             if (!s.Kursanci.Any(x => x.Id == kursantId)) s.Kursanci.Add(kursant);
             if (!kurs.Uczestnicy.Any(x => x.Id == kursantId)) kurs.Uczestnicy.Add(kursant);
 
             kursant.PrzypisanyKursId = kId;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool UsunKurs(Guid sId, Guid kId)
+        {
+            var s = _szkoly.Get(sId);
+            var kurs = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+
+            if (s == null || kurs == null) return false;
+
+            foreach (var u in kurs.Uczestnicy)
+            {
+                u.PrzypisanyKursId = null;
+            }
+
+            s.Kursy.Remove(kurs);
+
             _uow.SaveChanges();
             return true;
         }

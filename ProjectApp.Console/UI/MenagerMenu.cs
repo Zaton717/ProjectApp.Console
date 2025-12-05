@@ -15,10 +15,11 @@ namespace ProjectApp.ConsoleApp.UI
         private readonly IKursService _kSvc;
         private readonly IInstruktorService _iSvc;
         private readonly IKursantService _studentSvc;
+        private readonly ISzkolaService _szkolaSvc;
 
-        public ManagerMenu(Guid id, IPojazdService p, IKursService k, IInstruktorService i, IKursantService s)
+        public ManagerMenu(Guid id, IPojazdService p, IKursService k, IInstruktorService i, IKursantService st, ISzkolaService sSvc)
         {
-            _sId = id; _pSvc = p; _kSvc = k; _iSvc = i; _studentSvc = s;
+            _sId = id; _pSvc = p; _kSvc = k; _iSvc = i; _studentSvc = st; _szkolaSvc = sSvc;
         }
 
         protected override string Title => "PANEL MENADŻERA";
@@ -29,62 +30,19 @@ namespace ProjectApp.ConsoleApp.UI
             ['2'] = new("Flota - Dodaj Pojazd", DodajPojazd),
             ['3'] = new("Flota - Przypisz Instruktora", PrzypiszPojazdDoInstruktora),
             ['4'] = new("Flota - Zgłoś Awarię/Serwis", ZmienStatus),
-            ['5'] = new("Kursy - Utwórz nowy", DodajKurs),
+            ['5'] = new("Kursy - Utwórz nowy (Cena)", DodajKurs),
             ['6'] = new("Kursy - Przypisz Instruktora", PrzypiszInstruktoraDoKursu),
             ['7'] = new("Kursy - Zapisz Kursanta", ZapiszKursantaNaKurs),
-            ['8'] = new("KADRY - Zatrudnij/Zwolnij", ZarzadzajKadra), // <--- NOWE PODMENU
-            ['9'] = new("Kursanci - Utwórz konto", DodajNowegoKursanta),
+            ['8'] = new("Kursanci - Utwórz konto i przypisz do szkoły", DodajNowegoKursanta),
+            ['9'] = new("Kursy - USUŃ KURS", UsunKurs), // <--- NOWE
             ['0'] = new("Powrót", null)
         };
-
-        // --- KADRY (NOWE) ---
-        private void ZarzadzajKadra()
-        {
-            Console.Clear();
-            Console.WriteLine("--- ZARZĄDZANIE KADRĄ ---");
-            Console.WriteLine("1. Lista Instruktorów");
-            Console.WriteLine("2. Zatrudnij Instruktora (Wiele kategorii)");
-            Console.WriteLine("3. Zwolnij Instruktora");
-            Console.WriteLine("0. Powrót");
-
-            var opt = Console.ReadLine();
-
-            if (opt == "1")
-            {
-                var list = _iSvc.GetAll(_sId);
-                foreach (var i in list) Console.WriteLine($"- {i.PelneImie} [{string.Join(",", i.Uprawnienia)}]");
-                ConsoleHelpers.Pause();
-            }
-            else if (opt == "2")
-            {
-                Console.Write("Imię: "); var i = Console.ReadLine();
-                Console.Write("Nazwisko: "); var n = Console.ReadLine();
-
-                Console.WriteLine("Kategorie po przecinku (A, B, C...):");
-                string input = Console.ReadLine()?.ToUpper() ?? "";
-                var katList = new List<KategoriaPrawaJazdy>();
-                foreach (var s in input.Split(','))
-                    if (Enum.TryParse(s.Trim(), out KategoriaPrawaJazdy k)) katList.Add(k);
-
-                if (katList.Count == 0) katList.Add(KategoriaPrawaJazdy.B); // Domyślnie B
-
-                _iSvc.Zatrudnij(_sId, i ?? "", n ?? "", katList);
-                Console.WriteLine("Zatrudniono.");
-                ConsoleHelpers.Pause();
-            }
-            else if (opt == "3")
-            {
-                var list = _iSvc.GetAll(_sId);
-                for (int i = 0; i < list.Count; i++) Console.WriteLine($"{i + 1}) {list[i].PelneImie}");
-                int idx = ConsoleHelpers.ReadIndex("Kogo zwolnić: ", list.Count);
-                if (idx >= 0) _iSvc.Zwolnij(_sId, list[idx].Id);
-            }
-        }
 
         // --- FLOTA ---
         private void ListaPojazdow()
         {
             var list = _pSvc.GetAll(_sId);
+            Console.WriteLine("--- FLOTA ---");
             foreach (var p in list)
             {
                 var col = p.Status == StatusPojazdu.Sprawny ? ConsoleColor.Green : ConsoleColor.Red;
@@ -94,7 +52,7 @@ namespace ProjectApp.ConsoleApp.UI
                     var instr = _iSvc.GetAll(_sId).FirstOrDefault(i => i.Id == p.PrzypisanyInstruktorId);
                     if (instr != null) kierowca = instr.Nazwisko;
                 }
-                Console.Write($"- {p.Marka} {p.Model} [{p.NrRejestracyjny}] ({kierowca}) -> ");
+                Console.Write($"- {p.Marka} {p.Model} ({p.NrRejestracyjny}) [Kierowca: {kierowca}] -> ");
                 Console.ForegroundColor = col; Console.WriteLine(p.Status); Console.ResetColor();
             }
             ConsoleHelpers.Pause();
@@ -112,7 +70,7 @@ namespace ProjectApp.ConsoleApp.UI
         {
             var pojazdy = _pSvc.GetAll(_sId);
             if (!pojazdy.Any()) { Console.WriteLine("Brak aut."); ConsoleHelpers.Pause(); return; }
-            for (int i = 0; i < pojazdy.Count; i++) Console.WriteLine($"{i + 1}) {pojazdy[i].Marka}");
+            for (int i = 0; i < pojazdy.Count; i++) Console.WriteLine($"{i + 1}) {pojazdy[i].Marka} ({pojazdy[i].NrRejestracyjny})");
             int idxP = ConsoleHelpers.ReadIndex("Wybierz pojazd: ", pojazdy.Count);
             if (idxP < 0) return;
 
@@ -129,67 +87,111 @@ namespace ProjectApp.ConsoleApp.UI
         private void ZmienStatus()
         {
             var list = _pSvc.GetAll(_sId);
-            if (!list.Any()) return;
+            if (!list.Any()) { Console.WriteLine("Brak aut."); ConsoleHelpers.Pause(); return; }
             for (int i = 0; i < list.Count; i++) Console.WriteLine($"{i + 1}) {list[i].Marka} [{list[i].Status}]");
-            int idx = ConsoleHelpers.ReadIndex("Wybierz: ", list.Count);
+            int idx = ConsoleHelpers.ReadIndex("Wybierz pojazd: ", list.Count);
             if (idx < 0) return;
-            Console.WriteLine("0-Sprawny, 1-Awaria, 2-WSerwisie");
-            int.TryParse(Console.ReadLine(), out int st);
-            _pSvc.ZmienStatus(_sId, list[idx].Id, (StatusPojazdu)st);
+
+            Console.WriteLine("Nowy status: 0-Sprawny, 1-Awaria, 2-WSerwisie");
+            if (int.TryParse(Console.ReadLine(), out int st) && Enum.IsDefined(typeof(StatusPojazdu), st))
+            {
+                _pSvc.ZmienStatus(_sId, list[idx].Id, (StatusPojazdu)st);
+                Console.WriteLine("Zapisano.");
+            }
             ConsoleHelpers.Pause();
         }
 
-        // --- KURSY ---
+        // --- KURSY I KURSANCI ---
+
         private void DodajKurs()
         {
             Console.Write("Kategoria (0:A, 1:B...): "); int.TryParse(Console.ReadLine(), out int k);
-            Console.Write("Cena: "); decimal.TryParse(Console.ReadLine(), out decimal c);
+            Console.Write("Cena (PLN): "); decimal.TryParse(Console.ReadLine(), out decimal c);
             _kSvc.UtworzKurs(_sId, (KategoriaPrawaJazdy)k, c);
-            Console.WriteLine("Utworzono."); ConsoleHelpers.Pause();
+            Console.WriteLine($"Utworzono kurs za {c} PLN.");
+            ConsoleHelpers.Pause();
         }
 
         private void PrzypiszInstruktoraDoKursu()
         {
             var kursy = _kSvc.GetAll(_sId).ToList();
-            if (!kursy.Any()) return;
-            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs {kursy[i].Numer} (Kat. {kursy[i].Kategoria})");
-            int idxK = ConsoleHelpers.ReadIndex("Kurs: ", kursy.Count);
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria})");
+            int idxK = ConsoleHelpers.ReadIndex("Wybierz kurs: ", kursy.Count);
             if (idxK < 0) return;
 
             var kadra = _iSvc.GetAll(_sId).ToList();
-            for (int i = 0; i < kadra.Count; i++) Console.WriteLine($"{i + 1}) {kadra[i].PelneImie} [{string.Join(",", kadra[i].Uprawnienia)}]");
-            int idxI = ConsoleHelpers.ReadIndex("Instruktor: ", kadra.Count);
+            if (!kadra.Any()) { Console.WriteLine("Brak instruktorów."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < kadra.Count; i++)
+            {
+                string upr = string.Join(",", kadra[i].Uprawnienia);
+                Console.WriteLine($"{i + 1}) {kadra[i].PelneImie} [{upr}]");
+            }
+            int idxI = ConsoleHelpers.ReadIndex("Wybierz instruktora: ", kadra.Count);
             if (idxI < 0) return;
 
-            if (_kSvc.PrzypiszInstruktora(_sId, kursy[idxK].Id, kadra[idxI].Id)) Console.WriteLine("Sukces.");
-            else Console.WriteLine("Błąd (brak uprawnień?).");
+            bool sukces = _kSvc.PrzypiszInstruktora(_sId, kursy[idxK].Id, kadra[idxI].Id);
+            if (sukces) Console.WriteLine("Przypisano.");
+            else Console.WriteLine("Błąd! Instruktor może nie mieć odpowiednich uprawnień.");
+
             ConsoleHelpers.Pause();
         }
 
         private void DodajNowegoKursanta()
         {
-            ConsoleHelpers.AddKursantAndReturnId(_studentSvc);
+            var noweId = ConsoleHelpers.AddKursantAndReturnId(_studentSvc);
+            if (noweId != Guid.Empty)
+            {
+                _szkolaSvc.AddExistingKursant(_sId, noweId);
+                Console.WriteLine("Kursant utworzony i dodany do listy uczniów tej szkoły.");
+            }
             ConsoleHelpers.Pause();
         }
 
         private void ZapiszKursantaNaKurs()
         {
-            var wszyscy = _studentSvc.GetAll().ToList();
-            if (!wszyscy.Any()) return;
-            Console.WriteLine("--- KURSANCI ---");
-            for (int i = 0; i < wszyscy.Count; i++) Console.WriteLine($"{i + 1}) {wszyscy[i].PelneImie}");
-            int idxS = ConsoleHelpers.ReadIndex("Wybierz: ", wszyscy.Count);
+            var szkola = _szkolaSvc.Get(_sId);
+            if (szkola == null) return;
+            var uczniowieSzkoly = szkola.Kursanci.ToList();
+
+            if (!uczniowieSzkoly.Any()) { Console.WriteLine("Ta szkoła nie ma jeszcze żadnych uczniów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ UCZNIA ---");
+            for (int i = 0; i < uczniowieSzkoly.Count; i++) Console.WriteLine($"{i + 1}) {uczniowieSzkoly[i].PelneImie}");
+            int idxS = ConsoleHelpers.ReadIndex("Numer: ", uczniowieSzkoly.Count);
             if (idxS < 0) return;
 
             var kursy = _kSvc.GetAll(_sId).ToList();
-            if (!kursy.Any()) return;
-            Console.WriteLine("--- KURSY ---");
-            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs {kursy[i].Numer} (Kat. {kursy[i].Kategoria})");
-            int idxK = ConsoleHelpers.ReadIndex("Wybierz: ", kursy.Count);
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ KURS ---");
+            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria}) Cena: {kursy[i].Cena}");
+            int idxK = ConsoleHelpers.ReadIndex("Numer: ", kursy.Count);
             if (idxK < 0) return;
 
-            _kSvc.ZapiszKursanta(_sId, kursy[idxK].Id, wszyscy[idxS].Id);
-            Console.WriteLine("Zapisano.");
+            _kSvc.ZapiszKursanta(_sId, kursy[idxK].Id, uczniowieSzkoly[idxS].Id);
+            Console.WriteLine("Zapisano kursanta na kurs.");
+            ConsoleHelpers.Pause();
+        }
+
+        private void UsunKurs()
+        {
+            var kursy = _kSvc.GetAll(_sId).ToList();
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów do usunięcia."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- USUWANIE KURSU ---");
+            for (int i = 0; i < kursy.Count; i++)
+                Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria}) - Uczestników: {kursy[i].Uczestnicy.Count}");
+
+            int idx = ConsoleHelpers.ReadIndex("Wybierz kurs do usunięcia: ", kursy.Count);
+            if (idx < 0) return;
+
+            Console.WriteLine($"Czy na pewno usunąć kurs nr {kursy[idx].Numer}? (tak/nie)");
+            if (Console.ReadLine() == "tak")
+            {
+                _kSvc.UsunKurs(_sId, kursy[idx].Id);
+                Console.WriteLine("Kurs usunięty.");
+            }
             ConsoleHelpers.Pause();
         }
     }

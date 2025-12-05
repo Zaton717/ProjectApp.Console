@@ -4,7 +4,7 @@ using ProjectApp.Services;
 using ProjectApp.ConsoleApp.UIDictionary;
 using ProjectApp.ServiceAbstractions;
 using ProjectApp.Abstractions;
-using ProjectApp.ConsoleApp.UI; // Namespace dla MainMenu
+using ProjectApp.ConsoleApp.UI;
 using System;
 
 class Program
@@ -20,7 +20,7 @@ class Program
         IUnitOfWork uow = new UnitOfWorkMemory(db);
 
         // 3. Services (5 serwisów)
-        ISzkolaService sSvc = new SzkolaService(sRepo, uow);
+        ISzkolaService sSvc = new SzkolaService(sRepo, kRepo, uow);
         IInstruktorService iSvc = new InstruktorService(sRepo, uow);
         IPojazdService pSvc = new PojazdService(sRepo, uow);
         IKursService kSvc = new KursService(sRepo, kRepo, uow);

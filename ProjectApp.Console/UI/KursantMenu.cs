@@ -14,7 +14,7 @@ namespace ProjectApp.ConsoleApp.UI
         private readonly Kursant _kursant;
         private readonly IKursService _kSvc;
         private readonly IInstruktorService _iSvc;
-        private readonly IKursantService _studentSvc; // <--- Potrzebne do OplacKurs()
+        private readonly IKursantService _studentSvc;
 
         public KursantMenu(Guid sId, Kursant k, IKursService ks, IInstruktorService Is, IKursantService stSvc)
         {
@@ -56,7 +56,7 @@ namespace ProjectApp.ConsoleApp.UI
                 if (Console.ReadLine()?.ToUpper() == "S")
                 {
                     _studentSvc.OplacKurs(_kursant.Id);
-                    _kursant.Oplacony = true; // Szybki update lokalny
+                    _kursant.Oplacony = true;
                     Console.WriteLine("Płatność przyjęta!");
                 }
             }

@@ -52,16 +52,15 @@ namespace ProjectApp.ConsoleApp.UI
         private void PanelMenadzera()
         {
             if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szkołę."); ConsoleHelpers.Pause(); return; }
-            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Zamknięte."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamknięta."); ConsoleHelpers.Pause(); return; }
 
-            // WAŻNE: Przekazujemy wszystkie 5 serwisów do Managera
-            new ManagerMenu(_currentSzkola.Id, _pSvc, _kSvc, _iSvc, _studentSvc).Run();
+            new ManagerMenu(_currentSzkola.Id, _pSvc, _kSvc, _iSvc, _studentSvc, _sSvc).Run();
         }
 
         private void PanelInstruktora()
         {
             if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szkołę."); ConsoleHelpers.Pause(); return; }
-            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Zamknięte."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamknięta."); ConsoleHelpers.Pause(); return; }
 
             var instruktorzy = _iSvc.GetAll(_currentSzkola.Id).ToList();
             if (!instruktorzy.Any()) { Console.WriteLine("Brak instruktorów."); ConsoleHelpers.Pause(); return; }
@@ -80,10 +79,11 @@ namespace ProjectApp.ConsoleApp.UI
         private void PanelKursanta()
         {
             if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szkołę."); ConsoleHelpers.Pause(); return; }
-            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Zamknięte."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamknięta."); ConsoleHelpers.Pause(); return; }
 
             var kursanci = _currentSzkola.Kursanci.ToList();
-            if (!kursanci.Any()) { Console.WriteLine("Brak kursantów."); ConsoleHelpers.Pause(); return; }
+
+            if (!kursanci.Any()) { Console.WriteLine("Brak kursantów w tej szkole."); ConsoleHelpers.Pause(); return; }
 
             Console.WriteLine("--- WYBIERZ SWOJE KONTO ---");
             for (int i = 0; i < kursanci.Count; i++)

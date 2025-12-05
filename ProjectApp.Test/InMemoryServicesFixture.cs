@@ -29,7 +29,7 @@ namespace ProjectApp.Test
             IUnitOfWork uow = new UnitOfWorkMemory(db);
 
             // 4. Tworzenie serwisów (Wstrzykiwanie zale¿noœci)
-            SzkolaService = new SzkolaService(szkolaRepo, uow);
+            SzkolaService = new SzkolaService(szkolaRepo, kursantRepo, uow);
             InstruktorService = new InstruktorService(szkolaRepo, uow);
             PojazdService = new PojazdService(szkolaRepo, uow);
             KursService = new KursService(szkolaRepo, kursantRepo, uow);
@@ -42,7 +42,7 @@ namespace ProjectApp.Test
 
         public void Dispose()
         {
-            // Sprz¹tanie po testach (niepotrzebne przy Memory, ale wymagane przez interfejs)
+            // Sprz¹tanie po testach
         }
     }
 }

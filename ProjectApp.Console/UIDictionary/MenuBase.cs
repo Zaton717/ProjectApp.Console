@@ -25,7 +25,7 @@ namespace ProjectApp.ConsoleApp.UIDictionary
 
                 if (Options.TryGetValue(key, out var opt))
                 {
-                    if (opt.Action == null) return; // Wyjście
+                    if (opt.Action == null) return;
 
                     try
                     {

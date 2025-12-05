@@ -6,7 +6,7 @@ namespace ProjectApp.DataModel
     public class Kurs : Entity
     {
         public int Numer { get; set; }
-        public decimal Cena { get; set; } // <--- NOWE POLE
+        public decimal Cena { get; set; }
 
         public KategoriaPrawaJazdy Kategoria { get; set; }
         public Guid? InstruktorId { get; set; }

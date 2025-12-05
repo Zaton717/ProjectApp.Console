@@ -129,15 +129,34 @@ namespace ProjectApp.ConsoleApp.UI
 
         private void DodajNowaSzkole()
         {
-            Console.Write("Nazwa szkoły: "); string nazwa = Console.ReadLine();
-            Console.Write("Adres: "); string adres = Console.ReadLine();
-            Console.Write("Imię Menadżera: "); string imieM = Console.ReadLine();
-            Console.Write("Nazwisko Menadżera: "); string nazwM = Console.ReadLine();
+            Console.WriteLine("\n--- TWORZENIE NOWEJ PLACÓWKI ---");
+            Console.Write("Nazwa szkoły (np. Auto-Mistrz Kraków): ");
+            string nazwa = Console.ReadLine() ?? "";
 
-            if (string.IsNullOrWhiteSpace(nazwa)) return;
+            Console.Write("Adres (Miasto/Ulica): ");
+            string adres = Console.ReadLine() ?? "";
 
-            _sSvc.Create(nazwa, adres, imieM, nazwM);
-            Console.WriteLine($"Utworzono szkołę: {nazwa}");
+            Console.WriteLine("\n--- MIANOWANIE MENADŻERA ---");
+            Console.Write("Imię Menadżera: ");
+            string imieM = Console.ReadLine() ?? "";
+
+            Console.Write("Nazwisko Menadżera: ");
+            string nazwM = Console.ReadLine() ?? "";
+
+            if (string.IsNullOrWhiteSpace(nazwa) || string.IsNullOrWhiteSpace(imieM))
+            {
+                Console.WriteLine("Dane nie mogą być puste!");
+                ConsoleHelpers.Pause();
+                return;
+            }
+
+            var noweId = _sSvc.Create(nazwa, adres, imieM, nazwM);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\nSUKCES! Utworzono nową szkołę: {nazwa}");
+            Console.ResetColor();
+            Console.WriteLine("Aby nią zarządzać, wróć do Menu Głównego i wybierz opcję 'Wybierz Szkołę'.");
+
             ConsoleHelpers.Pause();
         }
     }

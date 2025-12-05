@@ -9,6 +9,6 @@ namespace ProjectApp.ServiceAbstractions
         Guid Create(string imie, string nazwisko, DateTime dataUr);
         Kursant? Get(Guid id);
         IReadOnlyList<Kursant> GetAll();
-        bool OplacKurs(Guid kursantId); // <--- NOWE
+        bool OplacKurs(Guid kursantId);
     }
 }

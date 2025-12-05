@@ -11,5 +11,6 @@ namespace ProjectApp.ServiceAbstractions
         IReadOnlyList<Szkola> GetAll();
         bool ZamknijSzkole(Guid id);
         bool OtworzSzkole(Guid id);
+        bool AddExistingKursant(Guid szkolaId, Guid kursantId);
     }
 }

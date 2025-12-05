@@ -1,7 +1,7 @@
 ﻿using ProjectApp.DataModel;
 using ProjectApp.ServiceAbstractions;
 using System;
-using System.Collections.Generic; // Potrzebne do List<>
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ProjectApp.Services
@@ -26,7 +26,6 @@ namespace ProjectApp.Services
             // SZKOŁA 1: WARSZAWA
             var s1 = _sSvc.Create("Auto-Mistrz", "Warszawa, Centrum", "Jan", "Kierownik");
 
-            // ZMIANA: Przekazujemy listę uprawnień (B)
             _iSvc.Zatrudnij(s1, "Marek", "Drogowy", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.B });
             var i1 = _iSvc.GetAll(s1).First();
 
@@ -48,7 +47,6 @@ namespace ProjectApp.Services
             // SZKOŁA 2: KRAKÓW
             var s2 = _sSvc.Create("Moto-Krak", "Kraków, Rynek", "Piotr", "Biker");
 
-            // ZMIANA: Przekazujemy listę uprawnień (A oraz B)
             _iSvc.Zatrudnij(s2, "Krzysztof", "Ścigacz", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.A, KategoriaPrawaJazdy.B });
             var i2 = _iSvc.GetAll(s2).First();
 
@@ -70,7 +68,6 @@ namespace ProjectApp.Services
             // SZKOŁA 3: GDAŃSK
             var s3 = _sSvc.Create("Trans-Port", "Gdańsk, Portowa", "Zdzisław", "Tir");
 
-            // ZMIANA: Przekazujemy listę uprawnień (C)
             _iSvc.Zatrudnij(s3, "Bogdan", "Duży", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.C });
             var i3 = _iSvc.GetAll(s3).First();
 
