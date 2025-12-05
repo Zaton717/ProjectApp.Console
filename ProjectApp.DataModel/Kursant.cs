@@ -1,9 +1,11 @@
-﻿namespace ProjectApp.DataModel
+﻿using System;
+
+namespace ProjectApp.DataModel
 {
     public class Kursant : Osoba
     {
-        public uint IdKursanta { get; set; }
-        public KategoriaPrawaJazdy Kategoria { get; set; }
+        public DateTime DataUrodzenia { get; set; }
         public bool Oplacony { get; set; }
+        public Guid? PrzypisanyKursId { get; set; }
     }
 }

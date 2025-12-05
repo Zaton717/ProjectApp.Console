@@ -1,14 +1,14 @@
 ﻿using ProjectApp.DataModel;
-using System.Collections.Generic;
+using System;
+using System.Linq;
 
 namespace ProjectApp.Abstractions
 {
-    // Interfejs do zarządzania całą szkołą (zapis/odczyt)
     public interface ISzkolaRepository
     {
-        void Add(Szkola szkola);
-        Szkola Get(uint id);
-        List<Szkola> GetAll();
-        void Delete(uint id);
+        IQueryable<Szkola> Query();
+        Szkola? Get(Guid id);
+        void Add(Szkola entity);
+        void Remove(Szkola entity);
     }
 }

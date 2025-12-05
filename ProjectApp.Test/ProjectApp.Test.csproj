@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ProjectApp.Abstractions\ProjectApp.Abstractions.csproj" />
+    <ProjectReference Include="..\ProjectApp.Console\ProjectApp.Console.csproj" />
+    <ProjectReference Include="..\ProjectApp.DataAccess.Memory\ProjectApp.DataAccess.Memory.csproj" />
+    <ProjectReference Include="..\ProjectApp.DataModel\ProjectApp.DataModel.csproj" />
+    <ProjectReference Include="..\ProjectApp.ServiceAbstractions\ProjectApp.ServiceAbstractions.csproj" />
+    <ProjectReference Include="..\ProjectApp.Services.Memory\ProjectApp.Services.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

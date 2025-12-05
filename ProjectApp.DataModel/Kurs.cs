@@ -1,13 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace ProjectApp.DataModel
 {
-    public class Kurs
+    public class Kurs : Entity
     {
-        public uint IdKursu { get; set; }
+        public int Numer { get; set; }
+        public decimal Cena { get; set; } // <--- NOWE POLE
+
         public KategoriaPrawaJazdy Kategoria { get; set; }
-        public Instruktor Instruktor { get; set; }
-        public List<Kursant> Uczestnicy { get; set; } = new List<Kursant>();
-        public Harmonogram Harmonogram { get; set; }
+        public Guid? InstruktorId { get; set; }
+        public List<string> Harmonogram { get; set; } = new();
+        public List<Kursant> Uczestnicy { get; set; } = new();
     }
 }
