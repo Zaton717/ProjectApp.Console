@@ -48,7 +48,7 @@ namespace ProjectApp.ConsoleApp.UI
             Console.Clear();
             Console.WriteLine("--- ZARZĄDZANIE KADRĄ ---");
             Console.WriteLine("1. Lista Instruktorów");
-            Console.WriteLine("2. Zatrudnij Instruktora (Wiele kategorii)");
+            Console.WriteLine("2. Zatrudnij Instruktora");
             Console.WriteLine("3. Zwolnij Instruktora");
             Console.WriteLine("0. Powrót");
             Console.Write("\nOpcja: ");
