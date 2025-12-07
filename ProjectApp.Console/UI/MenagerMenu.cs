@@ -266,7 +266,7 @@ namespace ProjectApp.ConsoleApp.UI
             }
 
             _kSvc.ZapiszKursanta(_sId, nowyKurs.Id, wybranyUcen.Id);
-            Console.WriteLine("Zapisano pomyślnie. Status płatności został zachowany.");
+            Console.WriteLine("Zapisano pomyślnie.");
             ConsoleHelpers.Pause();
         }
 
