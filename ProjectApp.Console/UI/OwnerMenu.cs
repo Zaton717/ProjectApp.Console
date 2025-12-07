@@ -25,12 +25,12 @@ namespace ProjectApp.ConsoleApp.UI
 
         protected override Dictionary<char, MenuOption> Options => new()
         {
-            ['1'] = new("Raport Generalny (Finanse)", Raport),
-            ['2'] = new("Lista Pracowników (Menadżer + Kadra)", PokazKadre),
-            ['3'] = new("Zatrudnij Instruktora (Wiele kat.)", Zatrudnij), // <--- Zmiana
+            ['1'] = new("Raport Generalny", Raport),
+            ['2'] = new("Lista Pracowników", PokazKadre),
+            ['3'] = new("Zatrudnij Instruktora", Zatrudnij),
             ['4'] = new("Zwolnij Instruktora", Zwolnij),
             ['5'] = new("Zamknij/Otwórz tę placówkę", Toggle),
-            ['6'] = new("OTWÓRZ NOWĄ PLACÓWKĘ", DodajNowaSzkole),
+            ['6'] = new("Otwórz nową placówkę", DodajNowaSzkole),
             ['0'] = new("Powrót", null)
         };
 
@@ -84,31 +84,21 @@ namespace ProjectApp.ConsoleApp.UI
         private void Zatrudnij()
         {
             Console.WriteLine("\n--- REKRUTACJA ---");
-            Console.Write("Imię: "); var i = Console.ReadLine();
-            Console.Write("Nazwisko: "); var n = Console.ReadLine();
+            string imie;
+            do { Console.Write("Imię: "); imie = Console.ReadLine()?.Trim() ?? ""; } while (string.IsNullOrWhiteSpace(imie));
+            string nazwisko;
+            do { Console.Write("Nazwisko: "); nazwisko = Console.ReadLine()?.Trim() ?? ""; } while (string.IsNullOrWhiteSpace(nazwisko));
 
-            Console.WriteLine("Podaj kategorie oddzielone przecinkiem (np. A, B, C):");
-            string inputKat = Console.ReadLine()?.ToUpper() ?? "";
+            Console.WriteLine("Kategorie po przecinku (A, B...):");
+            string input = Console.ReadLine()?.ToUpper() ?? "";
+            var katList = new List<KategoriaPrawaJazdy>();
+            foreach (var s in input.Split(','))
+                if (Enum.TryParse(s.Trim(), out KategoriaPrawaJazdy k)) katList.Add(k);
 
-            var wybraneKategorie = new List<KategoriaPrawaJazdy>();
-            var czesci = inputKat.Split(',');
+            if (katList.Count == 0) katList.Add(KategoriaPrawaJazdy.B);
 
-            foreach (var czesc in czesci)
-            {
-                if (Enum.TryParse(czesc.Trim(), out KategoriaPrawaJazdy kat))
-                {
-                    wybraneKategorie.Add(kat);
-                }
-            }
-
-            if (wybraneKategorie.Count == 0)
-            {
-                Console.WriteLine("Nie podano poprawnych kategorii. Domyślnie przypisano B.");
-                wybraneKategorie.Add(KategoriaPrawaJazdy.B);
-            }
-
-            _iSvc.Zatrudnij(_sId, i ?? "", n ?? "", wybraneKategorie);
-            Console.WriteLine($"Zatrudniono instruktora z uprawnieniami: {string.Join(", ", wybraneKategorie)}");
+            _iSvc.Zatrudnij(_sId, imie, nazwisko, katList);
+            Console.WriteLine("Zatrudniono.");
             ConsoleHelpers.Pause();
         }
 
@@ -130,33 +120,46 @@ namespace ProjectApp.ConsoleApp.UI
         private void DodajNowaSzkole()
         {
             Console.WriteLine("\n--- TWORZENIE NOWEJ PLACÓWKI ---");
-            Console.Write("Nazwa szkoły (np. Auto-Mistrz Kraków): ");
-            string nazwa = Console.ReadLine() ?? "";
 
-            Console.Write("Adres (Miasto/Ulica): ");
-            string adres = Console.ReadLine() ?? "";
+            string nazwa;
+            do
+            {
+                Console.Write("Nazwa szkoły (np. Auto-Mistrz Kraków): ");
+                nazwa = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(nazwa)) Console.WriteLine("Błąd: Nazwa jest wymagana.");
+            } while (string.IsNullOrWhiteSpace(nazwa));
+
+            string adres;
+            do
+            {
+                Console.Write("Adres (Miasto/Ulica): ");
+                adres = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(adres)) Console.WriteLine("Błąd: Adres jest wymagany.");
+            } while (string.IsNullOrWhiteSpace(adres));
 
             Console.WriteLine("\n--- MIANOWANIE MENADŻERA ---");
-            Console.Write("Imię Menadżera: ");
-            string imieM = Console.ReadLine() ?? "";
 
-            Console.Write("Nazwisko Menadżera: ");
-            string nazwM = Console.ReadLine() ?? "";
-
-            if (string.IsNullOrWhiteSpace(nazwa) || string.IsNullOrWhiteSpace(imieM))
+            string imieM;
+            do
             {
-                Console.WriteLine("Dane nie mogą być puste!");
-                ConsoleHelpers.Pause();
-                return;
-            }
+                Console.Write("Imię Menadżera: ");
+                imieM = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(imieM)) Console.WriteLine("Błąd: Imię jest wymagane.");
+            } while (string.IsNullOrWhiteSpace(imieM));
 
-            var noweId = _sSvc.Create(nazwa, adres, imieM, nazwM);
+            string nazwM;
+            do
+            {
+                Console.Write("Nazwisko Menadżera: ");
+                nazwM = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(nazwM)) Console.WriteLine("Błąd: Nazwisko jest wymagane.");
+            } while (string.IsNullOrWhiteSpace(nazwM));
+
+            _sSvc.Create(nazwa, adres, imieM, nazwM);
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"\nSUKCES! Utworzono nową szkołę: {nazwa}");
             Console.ResetColor();
-            Console.WriteLine("Aby nią zarządzać, wróć do Menu Głównego i wybierz opcję 'Wybierz Szkołę'.");
-
             ConsoleHelpers.Pause();
         }
     }

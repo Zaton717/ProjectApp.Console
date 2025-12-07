@@ -36,10 +36,17 @@ namespace ProjectApp.Services
         public bool PrzypiszInstruktora(Guid sId, Guid kId, Guid iId)
         {
             var s = _szkoly.Get(sId);
+
             var k = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+
             var i = s?.Instruktorzy.FirstOrDefault(x => x.Id == iId);
 
             if (k == null || i == null) return false;
+
+            if (!i.Uprawnienia.Contains(k.Kategoria))
+            {
+                return false;
+            }
 
             k.InstruktorId = iId;
             _uow.SaveChanges();
@@ -66,13 +73,39 @@ namespace ProjectApp.Services
             if (s == null || kurs == null || kursant == null) return false;
 
             if (!s.Kursanci.Any(x => x.Id == kursantId)) s.Kursanci.Add(kursant);
-            if (!kurs.Uczestnicy.Any(x => x.Id == kursantId)) kurs.Uczestnicy.Add(kursant);
 
-            kursant.PrzypisanyKursId = kId;
-            _uow.SaveChanges();
+            if (!kurs.Uczestnicy.Any(x => x.Id == kursantId))
+            {
+                kurs.Uczestnicy.Add(kursant);
+                kursant.PrzypisanyKursId = kId; 
+                _uow.SaveChanges();
+            }
             return true;
         }
 
+        public bool WypiszKursanta(Guid sId, Guid kId, Guid kursantId)
+        {
+            var s = _szkoly.Get(sId);
+            var kurs = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+            var kursant = _kursanci.Get(kursantId);
+
+            if (kurs == null || kursant == null) return false;
+
+            var uczestnik = kurs.Uczestnicy.FirstOrDefault(u => u.Id == kursantId);
+            if (uczestnik != null)
+            {
+                kurs.Uczestnicy.Remove(uczestnik);
+
+                if (kursant.PrzypisanyKursId == kId)
+                {
+                    kursant.PrzypisanyKursId = null;
+                }
+
+                _uow.SaveChanges();
+                return true;
+            }
+            return false;
+        }
         public bool UsunKurs(Guid sId, Guid kId)
         {
             var s = _szkoly.Get(sId);

@@ -10,6 +10,7 @@ namespace ProjectApp.ServiceAbstractions
         bool PrzypiszInstruktora(Guid szkolaId, Guid kursId, Guid instruktorId);
         bool DodajTermin(Guid szkolaId, Guid kursId, string termin);
         bool ZapiszKursanta(Guid szkolaId, Guid kursId, Guid kursantId);
+        bool WypiszKursanta(Guid szkolaId, Guid kursId, Guid kursantId);
         bool UsunKurs(Guid szkolaId, Guid kursId);
 
         IReadOnlyList<Kurs> GetAll(Guid szkolaId);

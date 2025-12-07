@@ -23,7 +23,7 @@ namespace ProjectApp.ConsoleApp.UI
             _sSvc = s; _iSvc = i; _pSvc = p; _kSvc = k; _studentSvc = st;
         }
 
-        protected override string Title => $"MENU GŁÓWNE ({(_currentSzkola?.Nazwa ?? "BRAK WYBORU")})";
+        protected override string Title => $"MENU GŁÓWNE ({(_currentSzkola?.Nazwa ?? "NIE WYBRANO SZKOŁY")})";
 
         protected override Dictionary<char, MenuOption> Options => new()
         {

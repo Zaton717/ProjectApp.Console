@@ -30,7 +30,7 @@ namespace ProjectApp.ConsoleApp.UI
             ['1'] = new("Mój Pojazd", PokazPojazd),
             ['2'] = new("Moje Kursy i Harmonogram", PokazKursy),
             ['3'] = new("Dodaj Termin Zajęć", DodajTermin),
-            ['4'] = new("USUŃ MÓJ KURS", UsunKurs), // <--- NOWE
+            ['4'] = new("Usuń kurs", UsunKurs),
             ['0'] = new("Wyloguj", null)
         };
 

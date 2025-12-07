@@ -1,60 +1,48 @@
 
 
---- PLIK: Class1.cs ---
+--- PLIK: IKursantRepository.cs ---
+
+using ProjectApp.DataModel;
+using System;
+using System.Linq;
 
 namespace ProjectApp.Abstractions
 {
-    public class Class1
+    public interface IKursantRepository
     {
-
+        IQueryable<Kursant> Query();
+        Kursant? Get(Guid id);
+        void Add(Kursant entity);
+        void Remove(Kursant entity);
     }
 }
 
 
---- PLIK: IMatchRepositories.cs ---
+--- PLIK: ISzkolaRepository.cs ---
 
+using ProjectApp.DataModel;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.Abstractions
 {
-    internal interface IMatchRepositories
+    public interface ISzkolaRepository
     {
-    }
-}
-
-
---- PLIK: ITeamRepository.cs ---
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ProjectApp.Abstractions
-{
-    internal interface ITeamRepository
-    {
+        IQueryable<Szkola> Query();
+        Szkola? Get(Guid id);
+        void Add(Szkola entity);
+        void Remove(Szkola entity);
     }
 }
 
 
 --- PLIK: IUnitOfWork.cs ---
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace ProjectApp.Abstractions
 {
-    internal interface IUnitOfWork
+    public interface IUnitOfWork
     {
+        int SaveChanges();
     }
 }
 
@@ -85,7 +73,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.Abstractions")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.Abstractions")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.Abstractions")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -108,8 +96,87 @@ global using global::System.Threading.Tasks;
 
 --- PLIK: Program.cs ---
 
-// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+using ProjectApp.DataAccess.Memory;
+using ProjectApp.DataAccess.Memory.Repositories;
+using ProjectApp.Services;
+using ProjectApp.ConsoleApp.UIDictionary;
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.Abstractions;
+using ProjectApp.ConsoleApp.UI;
+using System;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        // 1. Database
+        var db = new MemoryDbContext();
+
+        // 2. Repositories
+        ISzkolaRepository sRepo = new SzkolaRepositoryMemory(db);
+        IKursantRepository kRepo = new KursantRepositoryMemory(db);
+        IUnitOfWork uow = new UnitOfWorkMemory(db);
+
+        // 3. Services (5 serwisów)
+        ISzkolaService sSvc = new SzkolaService(sRepo, kRepo, uow);
+        IInstruktorService iSvc = new InstruktorService(sRepo, uow);
+        IPojazdService pSvc = new PojazdService(sRepo, uow);
+        IKursService kSvc = new KursService(sRepo, kRepo, uow);
+        IKursantService studentSvc = new KursantService(kRepo, uow);
+
+        // 4. Seed
+        new DataSeeder(sSvc, iSvc, pSvc, kSvc, studentSvc).Seed();
+
+        Console.WriteLine(">>> SYSTEM GOTOWY <<<");
+
+        // 5. Run UI
+        new MainMenu(sSvc, iSvc, pSvc, kSvc, studentSvc).Run();
+    }
+}
+
+
+--- PLIK: ConsoleHelpers.cs ---
+
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Globalization;
+
+namespace ProjectApp.ConsoleApp.Helpers
+{
+    public static class ConsoleHelpers
+    {
+        public static void Pause()
+        {
+            Console.WriteLine("\n[ENTER]");
+            Console.ReadLine();
+        }
+
+        public static int ReadIndex(string prompt, int max)
+        {
+            Console.Write(prompt);
+            if (int.TryParse(Console.ReadLine(), out int val) && val >= 1 && val <= max)
+                return val - 1;
+            return -1;
+        }
+
+        public static Guid AddKursantAndReturnId(IKursantService svc)
+        {
+            Console.Write("Imiê: "); string imie = Console.ReadLine() ?? "";
+            Console.Write("Nazwisko: "); string nazwisko = Console.ReadLine() ?? "";
+            Console.Write("Data ur. (yyyy-MM-dd): ");
+
+            if (DateTime.TryParseExact(Console.ReadLine(), "yyyy-MM-dd", null, DateTimeStyles.None, out var data))
+            {
+                var id = svc.Create(imie, nazwisko, data);
+                Console.WriteLine("Dodano kursanta.");
+                return id;
+            }
+
+            Console.WriteLine("B³êdna data (wymagany format yyyy-MM-dd).");
+            return Guid.Empty;
+        }
+    }
+}
 
 
 --- PLIK: .NETCoreApp,Version=v8.0.AssemblyAttributes.cs ---
@@ -138,7 +205,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.Console")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.Console")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.Console")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -159,45 +226,771 @@ global using global::System.Threading;
 global using global::System.Threading.Tasks;
 
 
---- PLIK: Class1.cs ---
+--- PLIK: InstruktorMenu.cs ---
 
-namespace ProjectApp.DataAccess.Memory
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using ProjectApp.ConsoleApp.Helpers;
+using ProjectApp.ConsoleApp.UIDictionary;
+
+namespace ProjectApp.ConsoleApp.UI
 {
-    public class Class1
+    public class InstruktorMenu : MenuBase
     {
+        private readonly Guid _szkolaId;
+        private readonly Instruktor _instruktor;
+        private readonly IPojazdService _pSvc;
+        private readonly IKursService _kSvc;
 
+        public InstruktorMenu(Guid szkolaId, Instruktor instruktor, IPojazdService p, IKursService k)
+        {
+            _szkolaId = szkolaId;
+            _instruktor = instruktor;
+            _pSvc = p;
+            _kSvc = k;
+        }
+
+        protected override string Title => $"PANEL INSTRUKTORA: {_instruktor.PelneImie}";
+
+        protected override Dictionary<char, MenuOption> Options => new()
+        {
+            ['1'] = new("Mój Pojazd", PokazPojazd),
+            ['2'] = new("Moje Kursy i Harmonogram", PokazKursy),
+            ['3'] = new("Dodaj Termin Zajêæ", DodajTermin),
+            ['4'] = new("USUÑ MÓJ KURS", UsunKurs), // <--- NOWE
+            ['0'] = new("Wyloguj", null)
+        };
+
+        private void PokazPojazd()
+        {
+            var pojazdy = _pSvc.GetAll(_szkolaId)
+                .Where(p => p.PrzypisanyInstruktorId == _instruktor.Id)
+                .ToList();
+
+            if (!pojazdy.Any()) Console.WriteLine("Nie masz przypisanego pojazdu.");
+            else
+            {
+                Console.WriteLine("--- TWOJE POJAZDY ---");
+                foreach (var p in pojazdy) Console.WriteLine($"- {p.Marka} {p.Model} ({p.NrRejestracyjny}) [Status: {p.Status}]");
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void PokazKursy()
+        {
+            var kursy = _kSvc.GetAll(_szkolaId).Where(k => k.InstruktorId == _instruktor.Id).ToList();
+
+            if (!kursy.Any()) Console.WriteLine("Nie prowadzisz obecnie ¿adnych kursów.");
+            else
+            {
+                Console.WriteLine($"--- TWOJE KURSY (Liczba: {kursy.Count}) ---");
+                foreach (var k in kursy)
+                {
+                    Console.WriteLine($"\n[KURS NR {k.Numer}] - Kat. {k.Kategoria} (Uczniów: {k.Uczestnicy.Count})");
+                    if (k.Harmonogram.Any()) foreach (var t in k.Harmonogram) Console.WriteLine($"  * {t}");
+                    else Console.WriteLine(" (Brak ustalonych terminów)");
+                }
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void DodajTermin()
+        {
+            var mojeKursy = _kSvc.GetAll(_szkolaId).Where(k => k.InstruktorId == _instruktor.Id).ToList();
+            if (!mojeKursy.Any()) { Console.WriteLine("Brak kursów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ KURS ---");
+            for (int i = 0; i < mojeKursy.Count; i++)
+                Console.WriteLine($"{i + 1}) Kurs Nr {mojeKursy[i].Numer} (Kat. {mojeKursy[i].Kategoria})");
+
+            int idx = ConsoleHelpers.ReadIndex("Numer: ", mojeKursy.Count);
+            if (idx < 0) return;
+
+            Console.Write("Podaj termin: ");
+            string termin = Console.ReadLine() ?? "";
+
+            if (!string.IsNullOrWhiteSpace(termin))
+            {
+                _kSvc.DodajTermin(_szkolaId, mojeKursy[idx].Id, termin);
+                Console.WriteLine("Dodano.");
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void UsunKurs()
+        {
+            var mojeKursy = _kSvc.GetAll(_szkolaId).Where(k => k.InstruktorId == _instruktor.Id).ToList();
+            if (!mojeKursy.Any()) { Console.WriteLine("Nie masz kursów do usuniêcia."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ KURS DO USUNIÊCIA ---");
+            for (int i = 0; i < mojeKursy.Count; i++)
+                Console.WriteLine($"{i + 1}) Kurs Nr {mojeKursy[i].Numer} (Kat. {mojeKursy[i].Kategoria}) - Uczestników: {mojeKursy[i].Uczestnicy.Count}");
+
+            int idx = ConsoleHelpers.ReadIndex("Numer: ", mojeKursy.Count);
+            if (idx < 0) return;
+
+            Console.WriteLine($"UWAGA: Usuwasz kurs nr {mojeKursy[idx].Numer}. PotwierdŸ wpisuj¹c 'tak':");
+            if (Console.ReadLine() == "tak")
+            {
+                _kSvc.UsunKurs(_szkolaId, mojeKursy[idx].Id);
+                Console.WriteLine("Twój kurs zosta³ usuniêty.");
+            }
+            ConsoleHelpers.Pause();
+        }
     }
+}
+
+
+--- PLIK: KursantMenu.cs ---
+
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using ProjectApp.ConsoleApp.Helpers;
+using ProjectApp.ConsoleApp.UIDictionary;
+
+namespace ProjectApp.ConsoleApp.UI
+{
+    public class KursantMenu : MenuBase
+    {
+        private readonly Guid _szkolaId;
+        private readonly Kursant _kursant;
+        private readonly IKursService _kSvc;
+        private readonly IInstruktorService _iSvc;
+        private readonly IKursantService _studentSvc;
+
+        public KursantMenu(Guid sId, Kursant k, IKursService ks, IInstruktorService Is, IKursantService stSvc)
+        {
+            _szkolaId = sId; _kursant = k; _kSvc = ks; _iSvc = Is; _studentSvc = stSvc;
+        }
+
+        protected override string Title => $"PANEL KURSANTA: {_kursant.PelneImie}";
+
+        protected override Dictionary<char, MenuOption> Options => new()
+        {
+            ['1'] = new("Mój Status / P³atnoœci", PokazStatus),
+            ['2'] = new("Szczegó³y Kursu", PokazKurs),
+            ['0'] = new("Wyloguj", null)
+        };
+
+        private void PokazStatus()
+        {
+            Console.WriteLine($"Imiê i nazwisko: {_kursant.PelneImie}");
+
+            var kurs = _kSvc.GetAll(_szkolaId).FirstOrDefault(x => x.Uczestnicy.Any(u => u.Id == _kursant.Id));
+            decimal kwota = kurs?.Cena ?? 0;
+
+            if (kurs != null) Console.WriteLine($"Kurs: Kat. {kurs.Kategoria} | Cena: {kwota} PLN");
+
+            string status = _kursant.Oplacony ? "OP£ACONY" : "DO ZAP£ATY";
+            Console.ForegroundColor = _kursant.Oplacony ? ConsoleColor.Green : ConsoleColor.Red;
+            Console.WriteLine($"Status: {status}");
+            Console.ResetColor();
+
+            if (!_kursant.Oplacony)
+            {
+                Console.WriteLine("\n--- DANE DO PRZELEWU ---");
+                Console.WriteLine("Odbiorca: Auto-Mistrz Sp. z o.o.");
+                Console.WriteLine("Nr konta: 11 1020 3040 0000 9999 1234 5678");
+                Console.WriteLine($"Tytu³:    Kurs ID {_kursant.Id}");
+                Console.WriteLine($"Kwota:    {kwota} PLN");
+
+                Console.WriteLine("\n[S] Symuluj przelew online");
+                if (Console.ReadLine()?.ToUpper() == "S")
+                {
+                    _studentSvc.OplacKurs(_kursant.Id);
+                    _kursant.Oplacony = true;
+                    Console.WriteLine("P³atnoœæ przyjêta!");
+                }
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void PokazKurs()
+        {
+            var kurs = _kSvc.GetAll(_szkolaId).FirstOrDefault(x => x.Uczestnicy.Any(u => u.Id == _kursant.Id));
+            if (kurs == null) { Console.WriteLine("Brak kursu."); ConsoleHelpers.Pause(); return; }
+
+            string instr = "Brak";
+            if (kurs.InstruktorId.HasValue)
+                instr = _iSvc.GetAll(_szkolaId).FirstOrDefault(i => i.Id == kurs.InstruktorId)?.PelneImie ?? "Nieznany";
+
+            Console.WriteLine($"Kurs Nr {kurs.Numer} (Kat. {kurs.Kategoria})");
+            Console.WriteLine($"Instruktor: {instr}");
+            Console.WriteLine("Terminy:");
+            foreach (var t in kurs.Harmonogram) Console.WriteLine($"- {t}");
+            ConsoleHelpers.Pause();
+        }
+    }
+}
+
+
+--- PLIK: MainMenu.cs ---
+
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using ProjectApp.ConsoleApp.Helpers;
+using ProjectApp.ConsoleApp.UIDictionary;
+
+namespace ProjectApp.ConsoleApp.UI
+{
+    public class MainMenu : MenuBase
+    {
+        private readonly ISzkolaService _sSvc;
+        private readonly IInstruktorService _iSvc;
+        private readonly IPojazdService _pSvc;
+        private readonly IKursService _kSvc;
+        private readonly IKursantService _studentSvc;
+
+        private Szkola? _currentSzkola;
+
+        public MainMenu(ISzkolaService s, IInstruktorService i, IPojazdService p, IKursService k, IKursantService st)
+        {
+            _sSvc = s; _iSvc = i; _pSvc = p; _kSvc = k; _studentSvc = st;
+        }
+
+        protected override string Title => $"MENU G£ÓWNE ({(_currentSzkola?.Nazwa ?? "BRAK WYBORU")})";
+
+        protected override Dictionary<char, MenuOption> Options => new()
+        {
+            ['1'] = new("Wybierz Szko³ê / Zmieñ Placówkê", WybierzSzkole),
+            ['2'] = new("Panel W³aœciciela", PanelWlasciciela),
+            ['3'] = new("Panel Menad¿era", PanelMenadzera),
+            ['4'] = new("Panel Instruktora", PanelInstruktora),
+            ['5'] = new("Panel Kursanta", PanelKursanta),
+            ['0'] = new("Wyjœcie", null)
+        };
+
+        private void WybierzSzkole()
+        {
+            var list = _sSvc.GetAll().ToList();
+            for (int i = 0; i < list.Count; i++) Console.WriteLine($"{i + 1}) {list[i].Nazwa}");
+            int idx = ConsoleHelpers.ReadIndex("Wybierz: ", list.Count);
+            if (idx >= 0) _currentSzkola = list[idx];
+        }
+
+        private void PanelWlasciciela()
+        {
+            if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szko³ê."); ConsoleHelpers.Pause(); return; }
+            new OwnerMenu(_currentSzkola.Id, _sSvc, _iSvc).Run();
+        }
+
+        private void PanelMenadzera()
+        {
+            if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szko³ê."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamkniêta."); ConsoleHelpers.Pause(); return; }
+
+            new ManagerMenu(_currentSzkola.Id, _pSvc, _kSvc, _iSvc, _studentSvc, _sSvc).Run();
+        }
+
+        private void PanelInstruktora()
+        {
+            if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szko³ê."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamkniêta."); ConsoleHelpers.Pause(); return; }
+
+            var instruktorzy = _iSvc.GetAll(_currentSzkola.Id).ToList();
+            if (!instruktorzy.Any()) { Console.WriteLine("Brak instruktorów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ SWOJE KONTO ---");
+            for (int i = 0; i < instruktorzy.Count; i++)
+                Console.WriteLine($"{i + 1}) {instruktorzy[i].PelneImie}");
+
+            int idx = ConsoleHelpers.ReadIndex("Twój wybór: ", instruktorzy.Count);
+            if (idx >= 0)
+            {
+                new InstruktorMenu(_currentSzkola.Id, instruktorzy[idx], _pSvc, _kSvc).Run();
+            }
+        }
+
+        private void PanelKursanta()
+        {
+            if (_currentSzkola == null) { Console.WriteLine("Najpierw wybierz szko³ê."); ConsoleHelpers.Pause(); return; }
+            if (!_currentSzkola.CzyAktywna) { Console.WriteLine("Placówka zamkniêta."); ConsoleHelpers.Pause(); return; }
+
+            var kursanci = _currentSzkola.Kursanci.ToList();
+
+            if (!kursanci.Any()) { Console.WriteLine("Brak kursantów w tej szkole."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ SWOJE KONTO ---");
+            for (int i = 0; i < kursanci.Count; i++)
+                Console.WriteLine($"{i + 1}) {kursanci[i].PelneImie}");
+
+            int idx = ConsoleHelpers.ReadIndex("Twój wybór: ", kursanci.Count);
+            if (idx >= 0)
+            {
+                new KursantMenu(_currentSzkola.Id, kursanci[idx], _kSvc, _iSvc, _studentSvc).Run();
+            }
+        }
+    }
+}
+
+
+--- PLIK: MenagerMenu.cs ---
+
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using ProjectApp.ConsoleApp.Helpers;
+using ProjectApp.ConsoleApp.UIDictionary;
+
+namespace ProjectApp.ConsoleApp.UI
+{
+    public class ManagerMenu : MenuBase
+    {
+        private readonly Guid _sId;
+        private readonly IPojazdService _pSvc;
+        private readonly IKursService _kSvc;
+        private readonly IInstruktorService _iSvc;
+        private readonly IKursantService _studentSvc;
+        private readonly ISzkolaService _szkolaSvc;
+
+        public ManagerMenu(Guid id, IPojazdService p, IKursService k, IInstruktorService i, IKursantService st, ISzkolaService sSvc)
+        {
+            _sId = id; _pSvc = p; _kSvc = k; _iSvc = i; _studentSvc = st; _szkolaSvc = sSvc;
+        }
+
+        protected override string Title => "PANEL MENAD¯ERA";
+
+        protected override Dictionary<char, MenuOption> Options => new()
+        {
+            ['1'] = new("Flota - Lista", ListaPojazdow),
+            ['2'] = new("Flota - Dodaj Pojazd", DodajPojazd),
+            ['3'] = new("Flota - Przypisz Instruktora", PrzypiszPojazdDoInstruktora),
+            ['4'] = new("Flota - Zg³oœ Awariê/Serwis", ZmienStatus),
+            ['5'] = new("Kursy - Utwórz nowy (Cena)", DodajKurs),
+            ['6'] = new("Kursy - Przypisz Instruktora", PrzypiszInstruktoraDoKursu),
+            ['7'] = new("Kursy - Zapisz Kursanta", ZapiszKursantaNaKurs),
+            ['8'] = new("Kursanci - Utwórz konto i przypisz do szko³y", DodajNowegoKursanta),
+            ['9'] = new("Kursy - USUÑ KURS", UsunKurs), // <--- NOWE
+            ['0'] = new("Powrót", null)
+        };
+
+        // --- FLOTA ---
+        private void ListaPojazdow()
+        {
+            var list = _pSvc.GetAll(_sId);
+            Console.WriteLine("--- FLOTA ---");
+            foreach (var p in list)
+            {
+                var col = p.Status == StatusPojazdu.Sprawny ? ConsoleColor.Green : ConsoleColor.Red;
+                string kierowca = "Brak";
+                if (p.PrzypisanyInstruktorId.HasValue)
+                {
+                    var instr = _iSvc.GetAll(_sId).FirstOrDefault(i => i.Id == p.PrzypisanyInstruktorId);
+                    if (instr != null) kierowca = instr.Nazwisko;
+                }
+                Console.Write($"- {p.Marka} {p.Model} ({p.NrRejestracyjny}) [Kierowca: {kierowca}] -> ");
+                Console.ForegroundColor = col; Console.WriteLine(p.Status); Console.ResetColor();
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void DodajPojazd()
+        {
+            Console.Write("Marka: "); var m = Console.ReadLine();
+            Console.Write("Rej: "); var r = Console.ReadLine();
+            _pSvc.DodajPojazd(_sId, m ?? "", "Standard", r ?? "", TypPojazdu.SamochodOsobowy);
+            Console.WriteLine("Dodano."); ConsoleHelpers.Pause();
+        }
+
+        private void PrzypiszPojazdDoInstruktora()
+        {
+            var pojazdy = _pSvc.GetAll(_sId);
+            if (!pojazdy.Any()) { Console.WriteLine("Brak aut."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < pojazdy.Count; i++) Console.WriteLine($"{i + 1}) {pojazdy[i].Marka} ({pojazdy[i].NrRejestracyjny})");
+            int idxP = ConsoleHelpers.ReadIndex("Wybierz pojazd: ", pojazdy.Count);
+            if (idxP < 0) return;
+
+            var kadra = _iSvc.GetAll(_sId).ToList();
+            if (!kadra.Any()) { Console.WriteLine("Brak instruktorów."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < kadra.Count; i++) Console.WriteLine($"{i + 1}) {kadra[i].PelneImie}");
+            int idxI = ConsoleHelpers.ReadIndex("Wybierz instruktora: ", kadra.Count);
+            if (idxI < 0) return;
+
+            _pSvc.PrzypiszInstruktora(_sId, pojazdy[idxP].Id, kadra[idxI].Id);
+            Console.WriteLine("Przypisano."); ConsoleHelpers.Pause();
+        }
+
+        private void ZmienStatus()
+        {
+            var list = _pSvc.GetAll(_sId);
+            if (!list.Any()) { Console.WriteLine("Brak aut."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < list.Count; i++) Console.WriteLine($"{i + 1}) {list[i].Marka} [{list[i].Status}]");
+            int idx = ConsoleHelpers.ReadIndex("Wybierz pojazd: ", list.Count);
+            if (idx < 0) return;
+
+            Console.WriteLine("Nowy status: 0-Sprawny, 1-Awaria, 2-WSerwisie");
+            if (int.TryParse(Console.ReadLine(), out int st) && Enum.IsDefined(typeof(StatusPojazdu), st))
+            {
+                _pSvc.ZmienStatus(_sId, list[idx].Id, (StatusPojazdu)st);
+                Console.WriteLine("Zapisano.");
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        // --- KURSY I KURSANCI ---
+
+        private void DodajKurs()
+        {
+            Console.Write("Kategoria (0:A, 1:B...): "); int.TryParse(Console.ReadLine(), out int k);
+            Console.Write("Cena (PLN): "); decimal.TryParse(Console.ReadLine(), out decimal c);
+            _kSvc.UtworzKurs(_sId, (KategoriaPrawaJazdy)k, c);
+            Console.WriteLine($"Utworzono kurs za {c} PLN.");
+            ConsoleHelpers.Pause();
+        }
+
+        private void PrzypiszInstruktoraDoKursu()
+        {
+            var kursy = _kSvc.GetAll(_sId).ToList();
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria})");
+            int idxK = ConsoleHelpers.ReadIndex("Wybierz kurs: ", kursy.Count);
+            if (idxK < 0) return;
+
+            var kadra = _iSvc.GetAll(_sId).ToList();
+            if (!kadra.Any()) { Console.WriteLine("Brak instruktorów."); ConsoleHelpers.Pause(); return; }
+            for (int i = 0; i < kadra.Count; i++)
+            {
+                string upr = string.Join(",", kadra[i].Uprawnienia);
+                Console.WriteLine($"{i + 1}) {kadra[i].PelneImie} [{upr}]");
+            }
+            int idxI = ConsoleHelpers.ReadIndex("Wybierz instruktora: ", kadra.Count);
+            if (idxI < 0) return;
+
+            bool sukces = _kSvc.PrzypiszInstruktora(_sId, kursy[idxK].Id, kadra[idxI].Id);
+            if (sukces) Console.WriteLine("Przypisano.");
+            else Console.WriteLine("B³¹d! Instruktor mo¿e nie mieæ odpowiednich uprawnieñ.");
+
+            ConsoleHelpers.Pause();
+        }
+
+        private void DodajNowegoKursanta()
+        {
+            var noweId = ConsoleHelpers.AddKursantAndReturnId(_studentSvc);
+            if (noweId != Guid.Empty)
+            {
+                _szkolaSvc.AddExistingKursant(_sId, noweId);
+                Console.WriteLine("Kursant utworzony i dodany do listy uczniów tej szko³y.");
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void ZapiszKursantaNaKurs()
+        {
+            var szkola = _szkolaSvc.Get(_sId);
+            if (szkola == null) return;
+            var uczniowieSzkoly = szkola.Kursanci.ToList();
+
+            if (!uczniowieSzkoly.Any()) { Console.WriteLine("Ta szko³a nie ma jeszcze ¿adnych uczniów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ UCZNIA ---");
+            for (int i = 0; i < uczniowieSzkoly.Count; i++) Console.WriteLine($"{i + 1}) {uczniowieSzkoly[i].PelneImie}");
+            int idxS = ConsoleHelpers.ReadIndex("Numer: ", uczniowieSzkoly.Count);
+            if (idxS < 0) return;
+
+            var kursy = _kSvc.GetAll(_sId).ToList();
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- WYBIERZ KURS ---");
+            for (int i = 0; i < kursy.Count; i++) Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria}) Cena: {kursy[i].Cena}");
+            int idxK = ConsoleHelpers.ReadIndex("Numer: ", kursy.Count);
+            if (idxK < 0) return;
+
+            _kSvc.ZapiszKursanta(_sId, kursy[idxK].Id, uczniowieSzkoly[idxS].Id);
+            Console.WriteLine("Zapisano kursanta na kurs.");
+            ConsoleHelpers.Pause();
+        }
+
+        private void UsunKurs()
+        {
+            var kursy = _kSvc.GetAll(_sId).ToList();
+            if (!kursy.Any()) { Console.WriteLine("Brak kursów do usuniêcia."); ConsoleHelpers.Pause(); return; }
+
+            Console.WriteLine("--- USUWANIE KURSU ---");
+            for (int i = 0; i < kursy.Count; i++)
+                Console.WriteLine($"{i + 1}) Kurs Nr {kursy[i].Numer} (Kat. {kursy[i].Kategoria}) - Uczestników: {kursy[i].Uczestnicy.Count}");
+
+            int idx = ConsoleHelpers.ReadIndex("Wybierz kurs do usuniêcia: ", kursy.Count);
+            if (idx < 0) return;
+
+            Console.WriteLine($"Czy na pewno usun¹æ kurs nr {kursy[idx].Numer}? (tak/nie)");
+            if (Console.ReadLine() == "tak")
+            {
+                _kSvc.UsunKurs(_sId, kursy[idx].Id);
+                Console.WriteLine("Kurs usuniêty.");
+            }
+            ConsoleHelpers.Pause();
+        }
+    }
+}
+
+
+--- PLIK: OwnerMenu.cs ---
+
+using ProjectApp.ServiceAbstractions;
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using ProjectApp.ConsoleApp.Helpers;
+using ProjectApp.ConsoleApp.UIDictionary;
+
+namespace ProjectApp.ConsoleApp.UI
+{
+    public class OwnerMenu : MenuBase
+    {
+        private readonly Guid _sId;
+        private readonly ISzkolaService _sSvc;
+        private readonly IInstruktorService _iSvc;
+
+        public OwnerMenu(Guid id, ISzkolaService s, IInstruktorService i)
+        {
+            _sId = id;
+            _sSvc = s;
+            _iSvc = i;
+        }
+
+        protected override string Title => "PANEL W£AŒCICIELA";
+
+        protected override Dictionary<char, MenuOption> Options => new()
+        {
+            ['1'] = new("Raport Generalny (Finanse)", Raport),
+            ['2'] = new("Lista Pracowników (Menad¿er + Kadra)", PokazKadre),
+            ['3'] = new("Zatrudnij Instruktora (Wiele kat.)", Zatrudnij), // <--- Zmiana
+            ['4'] = new("Zwolnij Instruktora", Zwolnij),
+            ['5'] = new("Zamknij/Otwórz tê placówkê", Toggle),
+            ['6'] = new("OTWÓRZ NOW¥ PLACÓWKÊ", DodajNowaSzkole),
+            ['0'] = new("Powrót", null)
+        };
+
+        private void Raport()
+        {
+            var s = _sSvc.Get(_sId);
+            if (s == null) return;
+            Console.WriteLine($"Szko³a: {s.Nazwa}\nStatus: {(s.CzyAktywna ? "Aktywna" : "Zamkniêta")}");
+            Console.WriteLine($"Instruktorów: {s.Instruktorzy.Count}");
+            Console.WriteLine($"Pojazdów: {s.Pojazdy.Count}");
+            Console.WriteLine($"Kursów: {s.Kursy.Count}");
+
+            decimal przychod = 0;
+            int oplaceni = 0;
+            foreach (var k in s.Kursy)
+            {
+                int zaplacili = k.Uczestnicy.Count(u => u.Oplacony);
+                oplaceni += zaplacili;
+                przychod += zaplacili * k.Cena;
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n--- FINANSE ---");
+            Console.WriteLine($"Op³aconych kursów: {oplaceni}");
+            Console.WriteLine($"Przychód ca³kowity: {przychod:C} PLN");
+            Console.ResetColor();
+
+            ConsoleHelpers.Pause();
+        }
+
+        private void PokazKadre()
+        {
+            var szkola = _sSvc.Get(_sId);
+            if (szkola == null) return;
+
+            Console.WriteLine("--- ZARZ¥D ---");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($" {szkola.Menadzer.PelneImie.ToUpper()} (Menad¿er)");
+            Console.ResetColor();
+
+            var list = _iSvc.GetAll(_sId);
+            Console.WriteLine("\n--- INSTRUKTORZY ---");
+            if (!list.Any()) Console.WriteLine(" Brak.");
+            foreach (var i in list)
+            {
+                Console.WriteLine($" - {i.PelneImie} [Uprawnienia: {string.Join(", ", i.Uprawnienia)}]");
+            }
+            ConsoleHelpers.Pause();
+        }
+
+        private void Zatrudnij()
+        {
+            Console.WriteLine("\n--- REKRUTACJA ---");
+            Console.Write("Imiê: "); var i = Console.ReadLine();
+            Console.Write("Nazwisko: "); var n = Console.ReadLine();
+
+            Console.WriteLine("Podaj kategorie oddzielone przecinkiem (np. A, B, C):");
+            string inputKat = Console.ReadLine()?.ToUpper() ?? "";
+
+            var wybraneKategorie = new List<KategoriaPrawaJazdy>();
+            var czesci = inputKat.Split(',');
+
+            foreach (var czesc in czesci)
+            {
+                if (Enum.TryParse(czesc.Trim(), out KategoriaPrawaJazdy kat))
+                {
+                    wybraneKategorie.Add(kat);
+                }
+            }
+
+            if (wybraneKategorie.Count == 0)
+            {
+                Console.WriteLine("Nie podano poprawnych kategorii. Domyœlnie przypisano B.");
+                wybraneKategorie.Add(KategoriaPrawaJazdy.B);
+            }
+
+            _iSvc.Zatrudnij(_sId, i ?? "", n ?? "", wybraneKategorie);
+            Console.WriteLine($"Zatrudniono instruktora z uprawnieniami: {string.Join(", ", wybraneKategorie)}");
+            ConsoleHelpers.Pause();
+        }
+
+        private void Zwolnij()
+        {
+            var list = _iSvc.GetAll(_sId);
+            for (int i = 0; i < list.Count; i++) Console.WriteLine($"{i + 1}) {list[i].PelneImie}");
+            int idx = ConsoleHelpers.ReadIndex("Kogo zwolniæ: ", list.Count);
+            if (idx >= 0) _iSvc.Zwolnij(_sId, list[idx].Id);
+        }
+
+        private void Toggle()
+        {
+            var s = _sSvc.Get(_sId);
+            if (s!.CzyAktywna) _sSvc.ZamknijSzkole(_sId); else _sSvc.OtworzSzkole(_sId);
+            Console.WriteLine("Zmieniono."); ConsoleHelpers.Pause();
+        }
+
+        private void DodajNowaSzkole()
+        {
+            Console.WriteLine("\n--- TWORZENIE NOWEJ PLACÓWKI ---");
+            Console.Write("Nazwa szko³y (np. Auto-Mistrz Kraków): ");
+            string nazwa = Console.ReadLine() ?? "";
+
+            Console.Write("Adres (Miasto/Ulica): ");
+            string adres = Console.ReadLine() ?? "";
+
+            Console.WriteLine("\n--- MIANOWANIE MENAD¯ERA ---");
+            Console.Write("Imiê Menad¿era: ");
+            string imieM = Console.ReadLine() ?? "";
+
+            Console.Write("Nazwisko Menad¿era: ");
+            string nazwM = Console.ReadLine() ?? "";
+
+            if (string.IsNullOrWhiteSpace(nazwa) || string.IsNullOrWhiteSpace(imieM))
+            {
+                Console.WriteLine("Dane nie mog¹ byæ puste!");
+                ConsoleHelpers.Pause();
+                return;
+            }
+
+            var noweId = _sSvc.Create(nazwa, adres, imieM, nazwM);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\nSUKCES! Utworzono now¹ szko³ê: {nazwa}");
+            Console.ResetColor();
+            Console.WriteLine("Aby ni¹ zarz¹dzaæ, wróæ do Menu G³ównego i wybierz opcjê 'Wybierz Szko³ê'.");
+
+            ConsoleHelpers.Pause();
+        }
+    }
+}
+
+
+--- PLIK: MenuBase.cs ---
+
+using System;
+using System.Collections.Generic;
+using ProjectApp.ConsoleApp.Helpers;
+
+namespace ProjectApp.ConsoleApp.UIDictionary
+{
+    public abstract class MenuBase
+    {
+        protected abstract string Title { get; }
+        protected abstract Dictionary<char, MenuOption> Options { get; }
+
+        public void Run()
+        {
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine($"=== {Title} ===\n");
+
+                foreach (var kv in Options)
+                    Console.WriteLine($"{kv.Key}) {kv.Value.Description}");
+
+                Console.Write("\nOpcja: ");
+                var key = Console.ReadKey().KeyChar;
+                Console.WriteLine();
+
+                if (Options.TryGetValue(key, out var opt))
+                {
+                    if (opt.Action == null) return;
+
+                    try
+                    {
+                        opt.Action();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"B³¹d: {ex.Message}");
+                        ConsoleHelpers.Pause();
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Nieznana opcja.");
+                    ConsoleHelpers.Pause();
+                }
+            }
+        }
+    }
+}
+
+
+--- PLIK: MenuOption.cs ---
+
+using System;
+
+namespace ProjectApp.ConsoleApp.UIDictionary
+{
+    public record MenuOption(string Description, Action? Action);
 }
 
 
 --- PLIK: MemoryDbContext.cs ---
 
-using System;
+using ProjectApp.DataModel;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.DataAccess.Memory
 {
-    internal class MemoryDbContext
+    public class MemoryDbContext
     {
+        public List<Szkola> Szkoly { get; } = new();
+        public List<Kursant> Kursanci { get; } = new();
+        public int SaveChanges() => 0;
     }
 }
 
 
 --- PLIK: UnitOfWorkMemory.cs ---
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using ProjectApp.Abstractions;
 
 namespace ProjectApp.DataAccess.Memory
 {
-    internal class UnitOfWorkMemory
+    public class UnitOfWorkMemory : IUnitOfWork
     {
+        private readonly MemoryDbContext _db;
+        public UnitOfWorkMemory(MemoryDbContext db) => _db = db;
+        public int SaveChanges() => _db.SaveChanges();
     }
 }
 
@@ -228,7 +1021,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.DataAccess.Memory")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.DataAccess.Memory")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.DataAccess.Memory")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -249,227 +1042,195 @@ global using global::System.Threading;
 global using global::System.Threading.Tasks;
 
 
---- PLIK: Enumy.cs ---
+--- PLIK: KursnatRepositoryMemory.cs ---
+
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using System.Collections.Generic;
+
+namespace ProjectApp.DataAccess.Memory.Repositories
+{
+    public class KursantRepositoryMemory : RepositoryMemoryBase<Kursant>, IKursantRepository
+    {
+        protected override List<Kursant> Entities => _db.Kursanci;
+        public KursantRepositoryMemory(MemoryDbContext db) : base(db) { }
+    }
+}
+
+
+--- PLIK: RepositoryMemoryBase.cs ---
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using ProjectApp.DataModel;
 
-namespace ProjectApp.DataModel
+namespace ProjectApp.DataAccess.Memory.Repositories
 {
-    public enum KategoriaPrawaJazdy
+    public abstract class RepositoryMemoryBase<T> where T : Entity
     {
-        A,
-        B,
-        C
-    }
+        protected readonly MemoryDbContext _db;
+        protected abstract List<T> Entities { get; }
 
-    public enum TypPojazdu
-    {
-        Motocykl,
-        SamochodOsobowy,
-        Ciezarowka
+        protected RepositoryMemoryBase(MemoryDbContext db)
+        {
+            _db = db;
+        }
+
+        public virtual IQueryable<T> Query() => Entities.AsQueryable();
+        public virtual T? Get(Guid id) => Entities.FirstOrDefault(e => e.Id == id);
+        public virtual void Add(T entity) => Entities.Add(entity);
+        public virtual void Remove(T entity) => Entities.Remove(entity);
     }
 }
 
+
+--- PLIK: SzkolaRepositoryMemory.cs ---
+
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using System.Collections.Generic;
+
+namespace ProjectApp.DataAccess.Memory.Repositories
+{
+    public class SzkolaRepositoryMemory : RepositoryMemoryBase<Szkola>, ISzkolaRepository
+    {
+        protected override List<Szkola> Entities => _db.Szkoly;
+        public SzkolaRepositoryMemory(MemoryDbContext db) : base(db) { }
+    }
+}
+
+
+--- PLIK: Entity.cs ---
+
+using System;
+
+namespace ProjectApp.DataModel
+{
+    public abstract class Entity
+    {
+        public Guid Id { get; init; } = Guid.NewGuid();
+    }
+}
+
+
+--- PLIK: Enumy.cs ---
+
+namespace ProjectApp.DataModel
+{
+    public enum KategoriaPrawaJazdy { A, B, C, D, T }
+    public enum TypPojazdu { Motocykl, SamochodOsobowy, Ciezarowka, Autobus }
+    public enum StatusPojazdu { Sprawny, Awaria, WSerwisie }
+}
+
+
+--- PLIK: Instruktor.cs ---
+
+using System.Collections.Generic;
+
+namespace ProjectApp.DataModel
+{
+    public class Instruktor : Osoba
+    {
+        public List<KategoriaPrawaJazdy> Uprawnienia { get; set; } = new();
+    }
+}
 
 
 --- PLIK: Kurs.cs ---
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.DataModel
 {
-    public class Kurs
+    public class Kurs : Entity
     {
-        private uint idKursu;
-        private KategoriaPrawaJazdy kategoria;
-        private List<Instruktor> instruktorzy;
-        private List<Kursant> uczestnicy;
-        private Harmonogram harmonogram;
+        public int Numer { get; set; }
+        public decimal Cena { get; set; }
 
-        public uint IdKursu { get; set; }
         public KategoriaPrawaJazdy Kategoria { get; set; }
-        public Harmonogram Harmonogram { get; set; }
-
-        public void DodajKursanta() { }
-        public void UsunKursanta() { }
-    }
-
-    public class Harmonogram
-    {
-        private uint idHarmonogramu;
-        private List<string> terminy;
-        private Kurs kurs;
-
-        public uint IdHarmonogramu { get; set; }
-        public List<string> Terminy { get; set; }
-
-        public void DodajTermin() { }
-        public void UsunTermin() { }
+        public Guid? InstruktorId { get; set; }
+        public List<string> Harmonogram { get; set; } = new();
+        public List<Kursant> Uczestnicy { get; set; } = new();
     }
 }
 
 
+--- PLIK: Kursant.cs ---
+
+using System;
+
+namespace ProjectApp.DataModel
+{
+    public class Kursant : Osoba
+    {
+        public DateTime DataUrodzenia { get; set; }
+        public bool Oplacony { get; set; }
+        public Guid? PrzypisanyKursId { get; set; }
+    }
+}
+
+
+--- PLIK: Menadzer.cs ---
+
+namespace ProjectApp.DataModel
+{
+    public class Menadzer : Osoba { }
+}
 
 
 --- PLIK: Osoba.cs ---
 
 namespace ProjectApp.DataModel
 {
-    public class Osoba
+    public abstract class Osoba : Entity
     {
-        private string imie;
-        private string nazwisko;
-        private string adres;
-        private string email;
-        private string telefon;
-        private string pesel;
-
-        public string Imie { get; set; }
-        public string Nazwisko { get; set; }
-        public string Adres { get; set; }
-        public string Email { get; set; }
-        public string Telefon { get; set; }
-        public string Pesel { get; set; }
-    }
-
-    public class Kursant : Osoba
-    {
-        private uint idKursanta;
-        private KategoriaPrawaJazdy kategoria;
-        private List<Kurs> oplaconeKursy;
-
-        public uint IdKursanta { get; set; }
-        public KategoriaPrawaJazdy Kategoria { get; set; }
-
-        public void ZapiszNaKurs() { }
-        public void OplacKurs() { }
-    }
-
-    public class Instruktor : Osoba
-    {
-        private uint idInstruktora;
-        private List<KategoriaPrawaJazdy> uprawnienia;
-
-        public uint IdInstruktora { get; set; }
-        public List<KategoriaPrawaJazdy> Uprawnienia { get; set; }
-
-        public void ProwadzZajecia() { }
-        public void SprawdzHarmonogram() { }
-    }
-
-    public class Menadzer : Osoba
-    {
-        private uint idMenadzera;
-
-        public uint IdMenadzera { get; set; }
-
-        public void TworzKurs() { }
-        public void PrzypiszInstruktora() { }
-        public void PrzypiszKursanta() { }
-    }
-
-    public class Wlasciciel : Osoba
-    {
-        private uint idWlasciciela;
-
-        public uint IdWlasciciela { get; set; }
-
-        public void ZarzadzajSzkola() { }
-        public void PrzegladajRaporty() { }
+        public string Imie { get; set; } = "";
+        public string Nazwisko { get; set; } = "";
+        public string PelneImie => $"{Imie} {Nazwisko}";
     }
 }
 
 
-
---- PLIK: Platnosc.cs ---
+--- PLIK: Pojazd.cs ---
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.DataModel
 {
-    public class Platnosc
+    public class Pojazd : Entity
     {
-        private uint idPlatnosci;
-        private Kursant kursant;
-        private double kwota;
-        private DateTime data;
-        private bool status;
-
-        public uint IdPlatnosci { get; set; }
-        public Kursant Kursant { get; set; }
-        public double Kwota { get; set; }
-        public DateTime Data { get; set; }
-        public bool Status { get; set; }
-
-        public void ZatwierdzPlatnosc() { }
-        public void ZwrocPlatnosc() { }
+        public string Marka { get; set; } = "";
+        public string Model { get; set; } = "";
+        public string NrRejestracyjny { get; set; } = "";
+        public TypPojazdu Typ { get; set; }
+        public StatusPojazdu Status { get; set; } = StatusPojazdu.Sprawny;
+        public Guid? PrzypisanyInstruktorId { get; set; }
     }
 }
-
 
 
 --- PLIK: Szkola.cs ---
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.DataModel
 {
-    public class Szkola
+    public class Szkola : Entity
     {
-        private uint idSzkoly;
-        private string nazwa;
-        private string adres;
-        private Menadzer menadzer;
-        private List<Instruktor> instruktorzy;
-        private List<Kursant> kursanci;
-        private List<Kurs> kursy;
-        private List<Pojazd> pojazdy;
+        public string Nazwa { get; set; } = "";
+        public string Adres { get; set; } = "";
+        public bool CzyAktywna { get; set; } = true;
 
-        public uint IdSzkoly { get; set; }
-        public string Nazwa { get; set; }
-        public string Adres { get; set; }
-        public Menadzer Menadzer { get; set; }
+        public Menadzer Menadzer { get; set; } = new();
 
-        public void DodajKurs() { }
-        public void DodajInstruktora() { }
-        public void DodajPojazd() { }
-    }
-
-    public class Pojazd
-    {
-        private uint idPojazdu;
-        private string marka;
-        private string model;
-        private string nrRejestracyjny;
-        private TypPojazdu typ;
-        private Instruktor przypisanyInstruktor;
-
-        public uint IdPojazdu { get; set; }
-        public string Marka { get; set; }
-        public string Model { get; set; }
-        public string NrRejestracyjny { get; set; }
-        public TypPojazdu Typ { get; set; }
-
-        public void PrzypiszInstruktora() { }
+        public List<Instruktor> Instruktorzy { get; set; } = new();
+        public List<Pojazd> Pojazdy { get; set; } = new();
+        public List<Kurs> Kursy { get; set; } = new();
+        public List<Kursant> Kursanci { get; set; } = new();
     }
 }
-
 
 
 --- PLIK: .NETCoreApp,Version=v8.0.AssemblyAttributes.cs ---
@@ -498,7 +1259,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.DataModel")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.DataModel")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.DataModel")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -519,45 +1280,107 @@ global using global::System.Threading;
 global using global::System.Threading.Tasks;
 
 
---- PLIK: Class1.cs ---
+--- PLIK: IDataSeeder.cs ---
 
 namespace ProjectApp.ServiceAbstractions
 {
-    public class Class1
+    public interface IDataSeeder
     {
-
+        void Seed();
     }
 }
 
 
---- PLIK: IMatchService.cs ---
+--- PLIK: IInstruktorService.cs ---
 
+using ProjectApp.DataModel;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.ServiceAbstractions
 {
-    internal interface IMatchService
+    public interface IInstruktorService
     {
+        bool Zatrudnij(Guid szkolaId, string imie, string nazwisko, List<KategoriaPrawaJazdy> uprawnienia);
+        bool Zwolnij(Guid szkolaId, Guid instruktorId);
+        IReadOnlyList<Instruktor> GetAll(Guid szkolaId);
     }
 }
 
 
---- PLIK: ITeamService.cs ---
+--- PLIK: IKursantService.cs ---
 
+using ProjectApp.DataModel;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.ServiceAbstractions
 {
-    internal interface ITeamService
+    public interface IKursantService
     {
+        Guid Create(string imie, string nazwisko, DateTime dataUr);
+        Kursant? Get(Guid id);
+        IReadOnlyList<Kursant> GetAll();
+        bool OplacKurs(Guid kursantId);
+    }
+}
+
+
+--- PLIK: IKursService.cs ---
+
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+
+namespace ProjectApp.ServiceAbstractions
+{
+    public interface IKursService
+    {
+        Guid UtworzKurs(Guid szkolaId, KategoriaPrawaJazdy kat, decimal cena);
+        bool PrzypiszInstruktora(Guid szkolaId, Guid kursId, Guid instruktorId);
+        bool DodajTermin(Guid szkolaId, Guid kursId, string termin);
+        bool ZapiszKursanta(Guid szkolaId, Guid kursId, Guid kursantId);
+        bool UsunKurs(Guid szkolaId, Guid kursId);
+
+        IReadOnlyList<Kurs> GetAll(Guid szkolaId);
+    }
+}
+
+
+--- PLIK: IPojazdService.cs ---
+
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+
+namespace ProjectApp.ServiceAbstractions
+{
+    public interface IPojazdService
+    {
+        bool DodajPojazd(Guid szkolaId, string marka, string model, string rej, TypPojazdu typ);
+        bool ZmienStatus(Guid szkolaId, Guid pojazdId, StatusPojazdu status);
+        bool PrzypiszInstruktora(Guid szkolaId, Guid pojazdId, Guid instruktorId);
+        IReadOnlyList<Pojazd> GetAll(Guid szkolaId);
+    }
+}
+
+
+--- PLIK: ISzkolaService.cs ---
+
+using ProjectApp.DataModel;
+using System;
+using System.Collections.Generic;
+
+namespace ProjectApp.ServiceAbstractions
+{
+    public interface ISzkolaService
+    {
+        Guid Create(string nazwa, string adres, string menadzerImie, string menadzerNazwisko);
+        Szkola? Get(Guid id);
+        IReadOnlyList<Szkola> GetAll();
+        bool ZamknijSzkole(Guid id);
+        bool OtworzSzkole(Guid id);
+        bool AddExistingKursant(Guid szkolaId, Guid kursantId);
     }
 }
 
@@ -588,7 +1411,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.ServiceAbstractions")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.ServiceAbstractions")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.ServiceAbstractions")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -609,45 +1432,439 @@ global using global::System.Threading;
 global using global::System.Threading.Tasks;
 
 
---- PLIK: Class1.cs ---
+--- PLIK: DataSeeder.cs ---
 
-namespace ProjectApp.Services.Memory
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ProjectApp.Services
 {
-    public class Class1
+    public class DataSeeder : IDataSeeder
     {
+        private readonly ISzkolaService _sSvc;
+        private readonly IInstruktorService _iSvc;
+        private readonly IPojazdService _pSvc;
+        private readonly IKursService _kSvc;
+        private readonly IKursantService _studentSvc;
 
+        public DataSeeder(ISzkolaService s, IInstruktorService i, IPojazdService p, IKursService k, IKursantService st)
+        {
+            _sSvc = s; _iSvc = i; _pSvc = p; _kSvc = k; _studentSvc = st;
+        }
+
+        public void Seed()
+        {
+            if (_sSvc.GetAll().Any()) return;
+
+            // SZKO£A 1: WARSZAWA
+            var s1 = _sSvc.Create("Auto-Mistrz", "Warszawa, Centrum", "Jan", "Kierownik");
+
+            _iSvc.Zatrudnij(s1, "Marek", "Drogowy", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.B });
+            var i1 = _iSvc.GetAll(s1).First();
+
+            _pSvc.DodajPojazd(s1, "Toyota", "Yaris", "WA 12345", TypPojazdu.SamochodOsobowy);
+            var p1 = _pSvc.GetAll(s1).First();
+            _pSvc.PrzypiszInstruktora(s1, p1.Id, i1.Id);
+
+            var k1_1 = _studentSvc.Create("Kamil", "Uczeñ", new DateTime(2005, 5, 10));
+            var k1_2 = _studentSvc.Create("Anna", "Nowa", new DateTime(2000, 1, 15));
+
+            var kurs1 = _kSvc.UtworzKurs(s1, KategoriaPrawaJazdy.B, 3200m);
+            _kSvc.PrzypiszInstruktora(s1, kurs1, i1.Id);
+            _kSvc.DodajTermin(s1, kurs1, "Poniedzia³ek 10:00");
+            _kSvc.DodajTermin(s1, kurs1, "Œroda 14:00");
+            _kSvc.ZapiszKursanta(s1, kurs1, k1_1);
+            _kSvc.ZapiszKursanta(s1, kurs1, k1_2);
+
+
+            // SZKO£A 2: KRAKÓW
+            var s2 = _sSvc.Create("Moto-Krak", "Kraków, Rynek", "Piotr", "Biker");
+
+            _iSvc.Zatrudnij(s2, "Krzysztof", "Œcigacz", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.A, KategoriaPrawaJazdy.B });
+            var i2 = _iSvc.GetAll(s2).First();
+
+            _pSvc.DodajPojazd(s2, "Yamaha", "MT-07", "KR MOTO1", TypPojazdu.Motocykl);
+            var p2 = _pSvc.GetAll(s2).First();
+            _pSvc.PrzypiszInstruktora(s2, p2.Id, i2.Id);
+
+            var k2_1 = _studentSvc.Create("Tomasz", "Szybki", new DateTime(1995, 10, 12));
+            var k2_2 = _studentSvc.Create("Ewa", "Zwinna", new DateTime(1998, 3, 30));
+
+            var kurs2 = _kSvc.UtworzKurs(s2, KategoriaPrawaJazdy.A, 1800m);
+            _kSvc.PrzypiszInstruktora(s2, kurs2, i2.Id);
+            _kSvc.DodajTermin(s2, kurs2, "Wtorek 17:00");
+            _kSvc.ZapiszKursanta(s2, kurs2, k2_1);
+            _kSvc.ZapiszKursanta(s2, kurs2, k2_2);
+            _studentSvc.OplacKurs(k2_1);
+
+
+            // SZKO£A 3: GDAÑSK
+            var s3 = _sSvc.Create("Trans-Port", "Gdañsk, Portowa", "Zdzis³aw", "Tir");
+
+            _iSvc.Zatrudnij(s3, "Bogdan", "Du¿y", new List<KategoriaPrawaJazdy> { KategoriaPrawaJazdy.C });
+            var i3 = _iSvc.GetAll(s3).First();
+
+            _pSvc.DodajPojazd(s3, "MAN", "TGA", "GD BIG01", TypPojazdu.Ciezarowka);
+            var p3 = _pSvc.GetAll(s3).First();
+            _pSvc.PrzypiszInstruktora(s3, p3.Id, i3.Id);
+
+            var k3_1 = _studentSvc.Create("Olek", "Mocny", new DateTime(1980, 12, 12));
+            var k3_2 = _studentSvc.Create("Bartek", "Kierowca", new DateTime(1990, 7, 7));
+
+            var kurs3 = _kSvc.UtworzKurs(s3, KategoriaPrawaJazdy.C, 5500m);
+            _kSvc.PrzypiszInstruktora(s3, kurs3, i3.Id);
+            _kSvc.DodajTermin(s3, kurs3, "Weekend 08:00 - 16:00");
+            _kSvc.ZapiszKursanta(s3, kurs3, k3_1);
+            _kSvc.ZapiszKursanta(s3, kurs3, k3_2);
+        }
     }
 }
 
 
---- PLIK: MatchService.cs ---
+--- PLIK: InstruktorService.cs ---
 
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.Services
 {
-    internal class MatchService
+    public class InstruktorService : IInstruktorService
     {
+        private readonly ISzkolaRepository _szkoly;
+        private readonly IUnitOfWork _uow;
+
+        public InstruktorService(ISzkolaRepository szkoly, IUnitOfWork uow)
+        {
+            _szkoly = szkoly;
+            _uow = uow;
+        }
+
+        public bool Zatrudnij(Guid sId, string imie, string nazwisko, List<KategoriaPrawaJazdy> uprawnienia)
+        {
+            var s = _szkoly.Get(sId);
+            if (s == null) return false;
+
+            var i = new Instruktor
+            {
+                Imie = imie,
+                Nazwisko = nazwisko,
+                Uprawnienia = uprawnienia ?? new List<KategoriaPrawaJazdy>()
+            };
+
+            s.Instruktorzy.Add(i);
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool Zwolnij(Guid sId, Guid iId)
+        {
+            var s = _szkoly.Get(sId);
+            if (s == null) return false;
+
+            var instr = s.Instruktorzy.FirstOrDefault(x => x.Id == iId);
+            if (instr == null) return false;
+
+            foreach (var p in s.Pojazdy.Where(p => p.PrzypisanyInstruktorId == iId))
+                p.PrzypisanyInstruktorId = null;
+
+            foreach (var k in s.Kursy.Where(k => k.InstruktorId == iId))
+                k.InstruktorId = null;
+
+            s.Instruktorzy.Remove(instr);
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public IReadOnlyList<Instruktor> GetAll(Guid sId)
+            => _szkoly.Get(sId)?.Instruktorzy.ToList() ?? new List<Instruktor>();
     }
 }
 
 
---- PLIK: TeamService.cs ---
+--- PLIK: KursantService.cs ---
 
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ProjectApp.Services
 {
-    internal class TeamService
+    public class KursantService : IKursantService
     {
+        private readonly IKursantRepository _kursanci;
+        private readonly IUnitOfWork _uow;
+
+        public KursantService(IKursantRepository k, IUnitOfWork uow)
+        {
+            _kursanci = k; _uow = uow;
+        }
+
+        public Guid Create(string imie, string nazwisko, DateTime dataUr)
+        {
+            var k = new Kursant { Imie = imie, Nazwisko = nazwisko, DataUrodzenia = dataUr };
+            _kursanci.Add(k);
+            _uow.SaveChanges();
+            return k.Id;
+        }
+
+        public Kursant? Get(Guid id) => _kursanci.Get(id);
+        public IReadOnlyList<Kursant> GetAll() => _kursanci.Query().OrderBy(k => k.Nazwisko).ToList();
+
+        public bool OplacKurs(Guid id)
+        {
+            var k = _kursanci.Get(id);
+            if (k == null) return false;
+            k.Oplacony = true;
+            _uow.SaveChanges();
+            return true;
+        }
+    }
+}
+
+
+--- PLIK: KursService.cs ---
+
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ProjectApp.Services
+{
+    public class KursService : IKursService
+    {
+        private readonly ISzkolaRepository _szkoly;
+        private readonly IKursantRepository _kursanci;
+        private readonly IUnitOfWork _uow;
+
+        public KursService(ISzkolaRepository s, IKursantRepository k, IUnitOfWork uow)
+        {
+            _szkoly = s; _kursanci = k; _uow = uow;
+        }
+
+        public Guid UtworzKurs(Guid sId, KategoriaPrawaJazdy kat, decimal cena)
+        {
+            var s = _szkoly.Get(sId);
+            if (s == null) return Guid.Empty;
+
+            int nowyNumer = 1;
+            if (s.Kursy.Any()) nowyNumer = s.Kursy.Max(x => x.Numer) + 1;
+
+            var k = new Kurs { Kategoria = kat, Numer = nowyNumer, Cena = cena };
+
+            s.Kursy.Add(k);
+            _uow.SaveChanges();
+            return k.Id;
+        }
+
+        public bool PrzypiszInstruktora(Guid sId, Guid kId, Guid iId)
+        {
+            var s = _szkoly.Get(sId);
+            var k = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+            var i = s?.Instruktorzy.FirstOrDefault(x => x.Id == iId);
+
+            if (k == null || i == null) return false;
+
+            k.InstruktorId = iId;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool DodajTermin(Guid sId, Guid kId, string termin)
+        {
+            var s = _szkoly.Get(sId);
+            var k = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+            if (k == null) return false;
+
+            k.Harmonogram.Add(termin);
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool ZapiszKursanta(Guid sId, Guid kId, Guid kursantId)
+        {
+            var s = _szkoly.Get(sId);
+            var kurs = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+            var kursant = _kursanci.Get(kursantId);
+
+            if (s == null || kurs == null || kursant == null) return false;
+
+            if (!s.Kursanci.Any(x => x.Id == kursantId)) s.Kursanci.Add(kursant);
+            if (!kurs.Uczestnicy.Any(x => x.Id == kursantId)) kurs.Uczestnicy.Add(kursant);
+
+            kursant.PrzypisanyKursId = kId;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool UsunKurs(Guid sId, Guid kId)
+        {
+            var s = _szkoly.Get(sId);
+            var kurs = s?.Kursy.FirstOrDefault(x => x.Id == kId);
+
+            if (s == null || kurs == null) return false;
+
+            foreach (var u in kurs.Uczestnicy)
+            {
+                u.PrzypisanyKursId = null;
+            }
+
+            s.Kursy.Remove(kurs);
+
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public IReadOnlyList<Kurs> GetAll(Guid sId)
+            => _szkoly.Get(sId)?.Kursy.ToList() ?? new List<Kurs>();
+    }
+}
+
+
+--- PLIK: PojazdService.cs ---
+
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ProjectApp.Services
+{
+    public class PojazdService : IPojazdService
+    {
+        private readonly ISzkolaRepository _szkoly;
+        private readonly IUnitOfWork _uow;
+
+        public PojazdService(ISzkolaRepository szkoly, IUnitOfWork uow)
+        {
+            _szkoly = szkoly;
+            _uow = uow;
+        }
+
+        public bool DodajPojazd(Guid sId, string marka, string model, string rej, TypPojazdu typ)
+        {
+            var s = _szkoly.Get(sId);
+            if (s == null) return false;
+
+            var p = new Pojazd { Marka = marka, Model = model, NrRejestracyjny = rej, Typ = typ };
+            s.Pojazdy.Add(p);
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool ZmienStatus(Guid sId, Guid pId, StatusPojazdu status)
+        {
+            var s = _szkoly.Get(sId);
+            var p = s?.Pojazdy.FirstOrDefault(x => x.Id == pId);
+            if (p == null) return false;
+
+            p.Status = status;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool PrzypiszInstruktora(Guid sId, Guid pId, Guid iId)
+        {
+            var s = _szkoly.Get(sId);
+            var p = s?.Pojazdy.FirstOrDefault(x => x.Id == pId);
+            var exists = s?.Instruktorzy.Any(x => x.Id == iId) ?? false;
+
+            if (p == null || !exists) return false;
+
+            p.PrzypisanyInstruktorId = iId;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public IReadOnlyList<Pojazd> GetAll(Guid sId)
+            => _szkoly.Get(sId)?.Pojazdy.ToList() ?? new List<Pojazd>();
+    }
+}
+
+
+--- PLIK: SzkolaService.cs ---
+
+using ProjectApp.Abstractions;
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ProjectApp.Services
+{
+    public class SzkolaService : ISzkolaService
+    {
+        private readonly ISzkolaRepository _szkoly;
+        private readonly IKursantRepository _kursanci;
+        private readonly IUnitOfWork _uow;
+
+        public SzkolaService(ISzkolaRepository szkoly, IKursantRepository kursanci, IUnitOfWork uow)
+        {
+            _szkoly = szkoly;
+            _kursanci = kursanci;
+            _uow = uow;
+        }
+
+        public Guid Create(string nazwa, string adres, string mImie, string mNazw)
+        {
+            var s = new Szkola
+            {
+                Nazwa = nazwa,
+                Adres = adres,
+                Menadzer = new Menadzer { Imie = mImie, Nazwisko = mNazw }
+            };
+            _szkoly.Add(s);
+            _uow.SaveChanges();
+            return s.Id;
+        }
+
+        public Szkola? Get(Guid id) => _szkoly.Get(id);
+
+        public IReadOnlyList<Szkola> GetAll() => _szkoly.Query().OrderBy(s => s.Nazwa).ToList();
+
+        public bool ZamknijSzkole(Guid id)
+        {
+            var s = Get(id); if (s == null) return false;
+            s.CzyAktywna = false;
+            _uow.SaveChanges(); return true;
+        }
+
+        public bool OtworzSzkole(Guid id)
+        {
+            var s = Get(id); if (s == null) return false;
+            s.CzyAktywna = true;
+            _uow.SaveChanges(); return true;
+        }
+
+        public bool AddExistingKursant(Guid szkolaId, Guid kursantId)
+        {
+            var szkola = _szkoly.Get(szkolaId);
+            var kursant = _kursanci.Get(kursantId);
+
+            if (szkola == null || kursant == null) return false;
+
+            if (!szkola.Kursanci.Any(k => k.Id == kursantId))
+            {
+                szkola.Kursanci.Add(kursant);
+                _uow.SaveChanges();
+            }
+            return true;
+        }
     }
 }
 
@@ -678,7 +1895,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.Services")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10abcfa28f274fff41091ac3c7d7dcdc6bae8c2e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.Services")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.Services")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
@@ -736,3 +1953,244 @@ global using global::System.Linq;
 global using global::System.Net.Http;
 global using global::System.Threading;
 global using global::System.Threading.Tasks;
+
+
+--- PLIK: InMemoryServicesFixture.cs ---
+
+using ProjectApp.DataAccess.Memory;
+using ProjectApp.DataAccess.Memory.Repositories;
+using ProjectApp.Abstractions;
+using ProjectApp.Services;
+using ProjectApp.ServiceAbstractions;
+using System;
+
+namespace ProjectApp.Test
+{
+    public class InMemoryServicesFixture : IDisposable
+    {
+        // Udostêpniamy wszystkie serwisy do testów
+        public ISzkolaService SzkolaService { get; }
+        public IInstruktorService InstruktorService { get; }
+        public IPojazdService PojazdService { get; }
+        public IKursService KursService { get; }
+        public IKursantService KursantService { get; }
+
+        public InMemoryServicesFixture()
+        {
+            // 1. Baza danych w pamiêci
+            var db = new MemoryDbContext();
+
+            // 2. Repozytoria
+            ISzkolaRepository szkolaRepo = new SzkolaRepositoryMemory(db);
+            IKursantRepository kursantRepo = new KursantRepositoryMemory(db);
+
+            // 3. Unit of Work
+            IUnitOfWork uow = new UnitOfWorkMemory(db);
+
+            // 4. Tworzenie serwisów (Wstrzykiwanie zale¿noœci)
+            SzkolaService = new SzkolaService(szkolaRepo, kursantRepo, uow);
+            InstruktorService = new InstruktorService(szkolaRepo, uow);
+            PojazdService = new PojazdService(szkolaRepo, uow);
+            KursService = new KursService(szkolaRepo, kursantRepo, uow);
+            KursantService = new KursantService(kursantRepo, uow);
+
+            // 5. Uruchomienie Seedera (¿eby testy mia³y na czym pracowaæ)
+            var seeder = new DataSeeder(SzkolaService, InstruktorService, PojazdService, KursService, KursantService);
+            seeder.Seed();
+        }
+
+        public void Dispose()
+        {
+            // Sprz¹tanie po testach
+        }
+    }
+}
+
+
+--- PLIK: LogikaBiznesowaTests.cs ---
+
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System;
+using System.Linq;
+using Xunit;
+
+namespace ProjectApp.Test
+{
+    public class LogikaBiznesowaTests : IClassFixture<InMemoryServicesFixture>
+    {
+        private readonly ISzkolaService _szkolaSvc;
+        private readonly IKursService _kursSvc;
+        private readonly IKursantService _studentSvc;
+
+        public LogikaBiznesowaTests(InMemoryServicesFixture fixture)
+        {
+            _szkolaSvc = fixture.SzkolaService;
+            _kursSvc = fixture.KursService;
+            _studentSvc = fixture.KursantService;
+        }
+
+        [Fact]
+        public void UtworzKurs_PowinienZapisacCeneINumer()
+        {
+            // Arrange
+            var szkola = _szkolaSvc.GetAll().First();
+            decimal cenaKursu = 4500m;
+
+            // Act
+            var idKursu = _kursSvc.UtworzKurs(szkola.Id, KategoriaPrawaJazdy.C, cenaKursu);
+
+            // Assert
+            var kurs = _kursSvc.GetAll(szkola.Id).FirstOrDefault(k => k.Id == idKursu);
+            Assert.NotNull(kurs);
+            Assert.Equal(cenaKursu, kurs.Cena);
+            Assert.True(kurs.Numer > 0); // Sprawdzamy czy auto-numeracja dzia³a
+        }
+
+        [Fact]
+        public void OplacKurs_PowinienZmienicStatusNaOplacony()
+        {
+            // Arrange
+            var kId = _studentSvc.Create("Jan", "Testowy", DateTime.Now);
+
+            // Sprawdzamy stan przed
+            var kursantPrzed = _studentSvc.Get(kId);
+            Assert.False(kursantPrzed!.Oplacony);
+
+            // Act
+            bool wynik = _studentSvc.OplacKurs(kId);
+
+            // Assert
+            Assert.True(wynik);
+            var kursantPo = _studentSvc.Get(kId);
+            Assert.True(kursantPo!.Oplacony);
+        }
+
+        [Fact]
+        public void ZapisNaKurs_PowinienPrzypisacKursantaDoSzkolyIKursu()
+        {
+            // Arrange
+            var sId = _szkolaSvc.Create("Szko³a Testowa", "Testowo", "Admin", "Admin");
+            var kId = _studentSvc.Create("Adam", "Nowy", DateTime.Now.AddYears(-20));
+            var kursId = _kursSvc.UtworzKurs(sId, KategoriaPrawaJazdy.A, 1000m);
+
+            // Act
+            var wynik = _kursSvc.ZapiszKursanta(sId, kursId, kId);
+
+            // Assert
+            Assert.True(wynik);
+
+            // 1. SprawdŸ czy jest w kursie
+            var kurs = _kursSvc.GetAll(sId).FirstOrDefault(k => k.Id == kursId);
+            Assert.Contains(kurs!.Uczestnicy, u => u.Id == kId);
+
+            // 2. SprawdŸ czy jest na liœcie uczniów szko³y (Menad¿er musi go widzieæ)
+            var szkola = _szkolaSvc.Get(sId);
+            Assert.Contains(szkola!.Kursanci, u => u.Id == kId);
+        }
+    }
+}
+
+
+--- PLIK: SzkolaServiceTests.cs ---
+
+using ProjectApp.DataModel;
+using ProjectApp.ServiceAbstractions;
+using System.Linq;
+using Xunit;
+
+namespace ProjectApp.Test
+{
+    public class SzkolaServiceTests : IClassFixture<InMemoryServicesFixture>
+    {
+        private readonly ISzkolaService _szkolaSvc;
+        private readonly IInstruktorService _instrSvc;
+        private readonly IPojazdService _pojazdSvc;
+
+        public SzkolaServiceTests(InMemoryServicesFixture fixture)
+        {
+            _szkolaSvc = fixture.SzkolaService;
+            _instrSvc = fixture.InstruktorService;
+            _pojazdSvc = fixture.PojazdService;
+        }
+
+        [Fact]
+        public void Seed_PowinienUtworzycSzkoly()
+        {
+            var szkoly = _szkolaSvc.GetAll();
+            Assert.NotEmpty(szkoly);
+            Assert.Contains(szkoly, s => s.Nazwa == "Auto-Mistrz");
+        }
+
+        [Fact]
+        public void InstruktorService_PowinienWidziecZatrudnionych()
+        {
+            var szkola = _szkolaSvc.GetAll().FirstOrDefault(s => s.Nazwa == "Auto-Mistrz");
+            Assert.NotNull(szkola);
+
+            var instruktorzy = _instrSvc.GetAll(szkola!.Id);
+            Assert.NotEmpty(instruktorzy);
+            Assert.Contains(instruktorzy, i => i.Imie == "Marek");
+        }
+
+        [Fact]
+        public void PojazdService_PowinienDodacNoweAuto()
+        {
+            var szkola = _szkolaSvc.GetAll().First();
+            int iloscPrzed = _pojazdSvc.GetAll(szkola.Id).Count;
+
+            bool sukces = _pojazdSvc.DodajPojazd(szkola.Id, "Test", "Auto", "T1", TypPojazdu.Motocykl);
+
+            Assert.True(sukces);
+            Assert.Equal(iloscPrzed + 1, _pojazdSvc.GetAll(szkola.Id).Count);
+        }
+    }
+}
+
+
+--- PLIK: .NETCoreApp,Version=v8.0.AssemblyAttributes.cs ---
+
+// <autogenerated />
+using System;
+using System.Reflection;
+[assembly: global::System.Runtime.Versioning.TargetFrameworkAttribute(".NETCoreApp,Version=v8.0", FrameworkDisplayName = ".NET 8.0")]
+
+
+--- PLIK: ProjectApp.Test.AssemblyInfo.cs ---
+
+//------------------------------------------------------------------------------
+// <auto-generated>
+//     Ten kod zostaÅ‚ wygenerowany przez narzÄ™dzie.
+//     Wersja wykonawcza:4.0.30319.42000
+//
+//     Zmiany w tym pliku mogÄ… spowodowaÄ‡ nieprawidÅ‚owe zachowanie i zostanÄ… utracone, jeÅ›li
+//     kod zostanie ponownie wygenerowany.
+// </auto-generated>
+//------------------------------------------------------------------------------
+
+using System;
+using System.Reflection;
+
+[assembly: System.Reflection.AssemblyCompanyAttribute("ProjectApp.Test")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bced87f6669bd3afc86572036a6ea0e066a9730e")]
+[assembly: System.Reflection.AssemblyProductAttribute("ProjectApp.Test")]
+[assembly: System.Reflection.AssemblyTitleAttribute("ProjectApp.Test")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+
+// Wygenerowane przez klasÄ™ WriteCodeFragment programu MSBuild.
+
+
+
+--- PLIK: ProjectApp.Test.GlobalUsings.g.cs ---
+
+// <auto-generated/>
+global using global::System;
+global using global::System.Collections.Generic;
+global using global::System.IO;
+global using global::System.Linq;
+global using global::System.Net.Http;
+global using global::System.Threading;
+global using global::System.Threading.Tasks;
+global using global::Xunit;

@@ -22,19 +22,52 @@ namespace ProjectApp.ConsoleApp.Helpers
 
         public static Guid AddKursantAndReturnId(IKursantService svc)
         {
-            Console.Write("Imię: "); string imie = Console.ReadLine() ?? "";
-            Console.Write("Nazwisko: "); string nazwisko = Console.ReadLine() ?? "";
-            Console.Write("Data ur. (yyyy-MM-dd): ");
+            Console.WriteLine("\n--- NOWY KURSANT ---");
 
-            if (DateTime.TryParseExact(Console.ReadLine(), "yyyy-MM-dd", null, DateTimeStyles.None, out var data))
+            string imie;
+            do
             {
-                var id = svc.Create(imie, nazwisko, data);
-                Console.WriteLine("Dodano kursanta.");
-                return id;
+                Console.Write("Imię: ");
+                imie = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(imie))
+                    Console.WriteLine("Błąd: Imię nie może być puste!");
+            } while (string.IsNullOrWhiteSpace(imie));
+
+            string nazwisko;
+            do
+            {
+                Console.Write("Nazwisko: ");
+                nazwisko = Console.ReadLine()?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(nazwisko))
+                    Console.WriteLine("Błąd: Nazwisko nie może być puste!");
+            } while (string.IsNullOrWhiteSpace(nazwisko));
+
+            DateTime dataUr;
+            while (true)
+            {
+                Console.Write("Data ur. (yyyy-MM-dd): ");
+                string? dataInput = Console.ReadLine();
+
+                if (DateTime.TryParseExact(dataInput, "yyyy-MM-dd", null, DateTimeStyles.None, out dataUr))
+                {
+                    if (dataUr > DateTime.Now)
+                    {
+                        Console.WriteLine("Błąd: Data urodzenia nie może być z przyszłości.");
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Błąd: Nieprawidłowy format daty (użyj RRRR-MM-DD).");
+                }
             }
 
-            Console.WriteLine("Błędna data (wymagany format yyyy-MM-dd).");
-            return Guid.Empty;
+            var id = svc.Create(imie, nazwisko, dataUr);
+            Console.WriteLine($"Dodano kursanta: {imie} {nazwisko}");
+            return id;
         }
     }
 }
