@@ -1,0 +1,59 @@
+﻿<UserControl x:Class="ProjectApp.Desktop.Views.SchoolSelectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <Grid Background="#F5F5F5">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+
+            <TextBlock Text="SYSTEM SZKÓŁ JAZDY" FontSize="28" FontWeight="Bold" 
+                       HorizontalAlignment="Center" Margin="0,0,0,10" Foreground="#333"/>
+            <TextBlock Text="Wybierz placówkę do zarządzania" FontSize="14" Foreground="Gray" 
+                       HorizontalAlignment="Center" Margin="0,0,0,30"/>
+
+            <ComboBox ItemsSource="{Binding Szkoly}" 
+                      SelectedItem="{Binding SelectedSzkola}" 
+                      DisplayMemberPath="Nazwa" 
+                      Height="45" FontSize="16" Padding="10,8" Margin="0,0,0,10"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,30">
+                <Button Content="+ Nowa Szkoła" Command="{Binding AddCommand}" 
+                        Padding="15,5" Margin="5" Background="#E0E0E0" FontWeight="SemiBold"/>
+
+                <Button Content="✎ Edytuj" Command="{Binding EditCommand}" 
+                        Padding="15,5" Margin="5" Background="#E0E0E0"/>
+
+                <Button Content="🗑 Usuń" Command="{Binding DeleteCommand}" 
+                        Padding="15,5" Margin="5" Background="#FFCDD2" Foreground="#D32F2F"/>
+            </StackPanel>
+
+            <Separator Margin="0,0,0,20"/>
+
+            <TextBlock Text="ZALOGUJ JAKO:" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+
+            <UniformGrid Columns="2" Rows="2">
+                <Button Content="WŁAŚCICIEL" Command="{Binding OpenOwnerCommand}" 
+                        Height="50" Margin="5" Background="#333" Foreground="White" FontWeight="Bold"/>
+
+                <Button Content="MENADŻER" Command="{Binding OpenManagerCommand}" 
+                        Height="50" Margin="5" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+
+                <Button Content="INSTRUKTOR" Command="{Binding OpenInstruktorCommand}" 
+                        Height="50" Margin="5" Background="#FF9800" Foreground="White" FontWeight="Bold"/>
+
+                <Button Content="KURSANT" Command="{Binding OpenKursantCommand}" 
+                        Height="50" Margin="5" Background="#2196F3" Foreground="White" FontWeight="Bold"/>
+            </UniformGrid>
+
+        </StackPanel>
+    </Grid>
+</UserControl>

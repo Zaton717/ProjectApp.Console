@@ -65,5 +65,27 @@ namespace ProjectApp.Services
             }
             return true;
         }
+
+        public bool Update(Guid id, string nowaNazwa, string nowyAdres)
+        {
+            var s = _szkoly.Get(id);
+            if (s == null) return false;
+
+            s.Nazwa = nowaNazwa;
+            s.Adres = nowyAdres;
+            _uow.SaveChanges();
+            return true;
+        }
+
+        public bool Delete(Guid id)
+        {
+            var s = _szkoly.Get(id);
+            if (s == null) return false;
+
+            _szkoly.Remove(s);
+            _uow.SaveChanges();
+            return true;
+        }
     }
+
 }

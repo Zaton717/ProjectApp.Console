@@ -12,5 +12,8 @@ namespace ProjectApp.ServiceAbstractions
         bool ZamknijSzkole(Guid id);
         bool OtworzSzkole(Guid id);
         bool AddExistingKursant(Guid szkolaId, Guid kursantId);
+
+        bool Update(Guid id, string nowaNazwa, string nowyAdres);
+        bool Delete(Guid id);
     }
 }

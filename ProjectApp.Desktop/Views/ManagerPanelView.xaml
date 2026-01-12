@@ -1,0 +1,87 @@
+﻿<UserControl x:Class="ProjectApp.Desktop.Views.ManagerPanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="900">
+
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,15">
+            <Button Content="🡠 Wyloguj / Zmień Szkołę" Command="{Binding WrocCommand}" Padding="10,5" Background="#EEE"/>
+
+            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Margin="20,0,0,0">
+                <TextBlock Text="PANEL MENADŻERA" FontSize="12" Foreground="Gray"/>
+                <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold"/>
+            </StackPanel>
+        </DockPanel>
+
+        <TabControl Grid.Row="1">
+
+            <TabItem Header=" 🚗 FLOTA " FontSize="14" Padding="10,5">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Button Content="+ Dodaj Pojazd" HorizontalAlignment="Left" Margin="0,0,0,10" Padding="15,5" Background="#E8F5E9"/>
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Flota}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Marka" Binding="{Binding Marka}" Width="*"/>
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*"/>
+                            <DataGridTextColumn Header="Rejestracja" Binding="{Binding NrRejestracyjny}" Width="*"/>
+                            <DataGridTextColumn Header="Typ" Binding="{Binding Typ}" Width="100"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header=" 📚 KURSY " FontSize="14" Padding="10,5">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Button Content="+ Utwórz Kurs" HorizontalAlignment="Left" Margin="0,0,0,10" Padding="15,5" Background="#E3F2FD"/>
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Kursy}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nr" Binding="{Binding Numer}" Width="50"/>
+                            <DataGridTextColumn Header="Kategoria" Binding="{Binding Kategoria}" Width="80"/>
+                            <DataGridTextColumn Header="Cena" Binding="{Binding Cena, StringFormat={}{0:C}}" Width="100"/>
+                            <DataGridTextColumn Header="Uczestników" Binding="{Binding Uczestnicy.Count}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header=" 👔 KADRA " FontSize="14" Padding="10,5">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Button Content="+ Zatrudnij Instruktora" HorizontalAlignment="Left" Margin="0,0,0,10" Padding="15,5" Background="#FFF3E0"/>
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Kadra}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Imię" Binding="{Binding Imie}" Width="*"/>
+                            <DataGridTextColumn Header="Nazwisko" Binding="{Binding Nazwisko}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</UserControl>
